@@ -1,6 +1,6 @@
 {
   "name": "one-company-desktop",
-  "version": "0.40.0",
+  "version": "0.40.1",
   "private": true,
   "description": "一人公司 · 桌面客户端（Electron + 原生 DSH）",
   "author": "一人公司",
@@ -93,6 +93,14 @@
       "createStartMenuShortcut": true,
       "shortcutName": "一人公司",
       "deleteAppDataOnUninstall": false
-    }
+    },
+    "publish": [
+      {
+        "provider": "github",
+        "owner": "CAI13976645145",
+        "repo": "YIren-opc",
+        "releaseType": "release"
+      }
+    ]
   }
 }
