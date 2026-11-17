@@ -6610,7 +6610,8 @@ async function runTask(taskId, options = {}) {
         signal: controller.signal,
         onEvent: (event) => {
           if (!task.lastRun) return;
-          task.lastRun.lastEventAt = new Date().toISOString();
+          // 心跳只是 DSH 活着，不代表任务有进展；不能刷新 lastEventAt，否则永远检测不到卡住
+          if (event.type !== 'heartbeat') task.lastRun.lastEventAt = new Date().toISOString();
           if (event.type === 'tool-call') {
             task.lastRun.currentActivity = `调用 ${String(event.tool?.name || '工具').replace(/^mcp__company__/, '')}`;
           } else if (event.type === 'reasoning') {
@@ -6932,7 +6933,19 @@ const TASK_STALL_MS = Math.max(60_000, Number(process.env.OC_TASK_STALL_MS) || 1
 const TASK_STALL_CHECK_MS = Math.max(10_000, Number(process.env.OC_TASK_STALL_CHECK_MS) || 60 * 1000);
 let taskStallBusy = false;
 
-function startTaskAfterAbort(taskId, options = {}, attempt = 0) {
+async function waitForTaskIdle(taskId, timeoutMs = 30_000) {
+  const started = Date.now();
+  while (activeTaskIds.has(taskId) && Date.now() - started < timeoutMs) {
+    await new Promise((resolve) => setTimeout(resolve, 500));
+  }
+  return !activeTaskIds.has(taskId);
+}
+
+async function startTaskAfterAbort(taskId, options = {}, attempt = 0) {
+  if (!(await waitForTaskIdle(taskId, 30_000))) {
+    console.warn('任务自动重启跳过：旧执行 30 秒内没有退出');
+    return;
+  }
   runTask(taskId, options).catch((error) => {
     if (attempt < 2) {
       setTimeout(() => startTaskAfterAbort(taskId, options, attempt + 1), 5000).unref?.();
@@ -7339,7 +7352,7 @@ function saveStore() {
 function backupStamp() {
   const now = new Date();
   const pad = (value) => String(value).padStart(2, '0');
-  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}`;
+  return `${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}${pad(now.getSeconds())}-${String(now.getMilliseconds()).padStart(3, '0')}-${Math.random().toString(36).slice(2, 5)}`;
 }
 
 /** 生成一份本地快照：store/settings + memory/uploads 等目录，放在 data/backups/<时间>/。 */
@@ -7382,6 +7395,21 @@ async function createDataSnapshot(kind = 'manual') {
   return { path: target, manifest };
 }
 
+async function copyDirMerge(source, destination) {
+  await mkdir(destination, { recursive: true });
+  const entries = await readdir(source, { withFileTypes: true });
+  for (const entry of entries) {
+    const from = join(source, entry.name);
+    const to = join(destination, entry.name);
+    if (entry.isDirectory()) {
+      await copyDirMerge(from, to);
+    } else if (entry.isFile()) {
+      await mkdir(dirname(to), { recursive: true });
+      await copyFile(from, to);
+    }
+  }
+}
+
 async function listBackupDirs() {
   const backups = [];
   try {
@@ -7407,7 +7435,7 @@ async function listBackupDirs() {
 async function ensureDailyBackup({ force = false } = {}) {
   try {
     const backups = await listBackupDirs();
-    const latest = backups[0];
+    const latest = backups.find((item) => item.kind === 'auto');
     if (!force && latest?.createdAt) {
       const age = Date.now() - (Date.parse(latest.createdAt) || 0);
       if (age >= 0 && age < 20 * 3600 * 1000) return null;
@@ -8204,11 +8232,34 @@ async function handleApi(req, res, pathname, url) {
     if (!backupStore || !Array.isArray(backupStore.employees) || !Array.isArray(backupStore.projects)) {
       return json(res, 400, { ok: false, code: 'INVALID_BACKUP', error: '备份里的 store.json 结构不正确' });
     }
-    await createDataSnapshot('manual').catch(() => {});
+    // 恢复前先停掉正在跑的任务，避免旧 run 把结果写回新 store
+    for (const taskId of [...activeTaskIds]) activeTaskRuns.get(taskId)?.controller.abort();
+    for (const taskId of [...activeTaskIds]) await waitForTaskIdle(taskId, 15_000);
+    try {
+      await createDataSnapshot('manual');
+    } catch (error) {
+      return json(res, 500, { ok: false, code: 'SNAPSHOT_FAILED', error: `恢复前快照失败，已中止：${error.message}` });
+    }
     const previous = store;
     try {
       store = normalizeState(backupStore);
       ensureTaskMandates();
+      // 快照里的 memory/uploads/experts 也要回拷，否则 store 与 Markdown 正文会版本不一致
+      for (const [name, dir] of [
+        ['memory', MEMORY_DIR],
+        ['uploads', UPLOAD_DIR],
+        ['experts', EXPERT_CONTENT_DIR],
+      ]) {
+        try {
+          const source = join(BACKUP_DIR, id, name);
+          await stat(source);
+          await copyDirMerge(source, dir);
+        } catch (error) {
+          console.warn(`恢复快照目录失败（${name}）：`, error instanceof Error ? error.message : String(error));
+        }
+      }
+      await ensureMemoryFiles();
+      memoryIndexSnapshots.clear();
       await saveStore();
       if (backupSettings && typeof backupSettings === 'object') {
         settings = { ...settings, ...backupSettings };
@@ -8226,6 +8277,7 @@ async function handleApi(req, res, pathname, url) {
       return json(res, 200, { ok: true, state: store, restoredAt: new Date().toISOString() });
     } catch (error) {
       store = previous;
+      await saveStore().catch(() => {});
       return json(res, 500, { ok: false, code: 'RESTORE_FAILED', error: error instanceof Error ? error.message : String(error) });
     }
   }
@@ -10202,7 +10254,7 @@ function insertSystemMessage(chatKey, textValue) {
           note: latest?.note || '',
           status: memory.status || 'active',
           updatedAt: memory.updatedAt || memory.createdAt || '',
-          canUndo: Number(memory.version) > 1,
+          canUndo: Number(memory.version) > 1 && (Array.isArray(memory.versions) ? memory.versions.length > 1 : false),
         };
       })
       .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
@@ -10214,6 +10266,10 @@ function insertSystemMessage(chatKey, textValue) {
   if (memoryUndoMatch && req.method === 'POST') {
     const memory = store.memories.find((item) => item.id === decodeURIComponent(memoryUndoMatch[1]));
     if (!memory) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '记忆不存在' });
+    const actor = store.employees.find((item) => item.id === String(req.headers['x-company-employee'] || '')) || null;
+    if (actor && !memoryVisibleTo(store, memory, actor)) {
+      return json(res, 403, { ok: false, code: 'FORBIDDEN', error: '无权操作该记忆' });
+    }
     const versions = Array.isArray(memory.versions) ? memory.versions : [];
     const previous = versions.find((item) => Number(item.version) < Number(memory.version));
     if (!previous) return json(res, 400, { ok: false, code: 'NO_PREVIOUS', error: '这条记忆没有更早的版本可撤销' });
@@ -10229,12 +10285,19 @@ function insertSystemMessage(chatKey, textValue) {
   if (memoryRestoreMatch && req.method === 'POST') {
     const memory = store.memories.find((item) => item.id === decodeURIComponent(memoryRestoreMatch[1]));
     if (!memory) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '记忆不存在' });
+    const actor = store.employees.find((item) => item.id === String(req.headers['x-company-employee'] || '')) || null;
+    if (actor && !memoryVisibleTo(store, memory, actor)) {
+      return json(res, 403, { ok: false, code: 'FORBIDDEN', error: '无权操作该记忆' });
+    }
     memory.status = 'active';
     memory.archiveReason = '';
     memory.updatedAt = new Date().toISOString();
-    memory.expiresAt = inferMemoryLayer(memory) === 'log'
-      ? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
-      : '';
+    const existingExpiry = Date.parse(memory.expiresAt || '') || 0;
+    memory.expiresAt = existingExpiry > Date.now()
+      ? memory.expiresAt
+      : inferMemoryLayer(memory) === 'log'
+        ? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
+        : '';
     await writeMemoryFile(memory);
     audit('memory.restore', {
       targetType: 'memory',

@@ -2317,7 +2317,7 @@ function renderMemoryActivity(memories) {
           <div class="memory-name">${escapeHtml(item.name)} · v${Number(item.version || 1)}</div>
           <div class="memory-path">${escapeHtml(item.layer === 'rule' ? '规则' : item.layer === 'log' ? '日志' : '笔记')} · ${escapeHtml(item.scope || '公司')} · ${escapeHtml(formatDateTime(item.updatedAt))}</div>
         </div>
-        ${Number(item.version || 1) > 1 ? `<button class="btn ghost small" type="button" data-action="undo-memory" data-id="${escapeHtml(item.id)}">撤销</button>` : ''}
+        ${Array.isArray(item.versions) && item.versions.length > 1 ? `<button class="btn ghost small" type="button" data-action="undo-memory" data-id="${escapeHtml(item.id)}">撤销</button>` : ''}
       </div>`,
     )
     .join('');
