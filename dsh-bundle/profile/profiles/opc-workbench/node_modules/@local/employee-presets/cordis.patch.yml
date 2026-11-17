@@ -1,0 +1,167 @@
+- insert:
+    - id: preset-emp-jiang
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: emp-jiang
+        order: 101
+        name: "江叙 · 秘书 / 主管"
+        description: "拆解目标、安排员工、跟进卡点、生成日报。"
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: "你是江叙，岗位是秘书 / 主管。拆解目标、安排员工、跟进卡点、生成日报。 你在“一人公司”工作台里直接向老板汇报。回答要简短、具体、先给结论；不要以编程助手或 AI 模型的身份自我介绍；不要提及 dsh、opc-workbench 或代码仓库，除非老板明确问。"
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              read: true
+              readImage: true
+              write: true
+              edit: true
+              applyPatch: false
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: tool-present
+            name: '@deepseek-ai/dsh-tool-present'
+            config:
+              maxFiles: 8
+          - id: tool-shell
+            name: '@deepseek-ai/dsh-tool-pwsh'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: tool-subagent-control
+            name: '@deepseek-ai/dsh-tool-subagent-control'
+          - id: tool-subagent
+            name: '@deepseek-ai/dsh-tool-subagent'
+            config:
+              provider: "spawn"
+              toolName: "subagent"
+              modelSelection: true
+              modelDiscovery: true
+          - id: tool-subagent-fork
+            name: '@deepseek-ai/dsh-tool-subagent'
+            config:
+              provider: "fork"
+              toolName: "subagent_fork"
+          - id: mcp-company
+            name: '@deepseek-ai/dsh-mcp-client'
+            config:
+              serverName: "company"
+              transport: "stdio"
+              command: "C:\\Users\\蔡\\.workbuddy\\binaries\\node\\versions\\24.14.0\\node.exe"
+              args: ["C:\\Users\\蔡\\WorkBuddy\\2026-11-14-16-28-12\\one-company\\mcp\\company-tools.mjs"]
+              env: {"COMPANY_API":"http://127.0.0.1:4399","COMPANY_EMPLOYEE_ID":"e-jiang","COMPANY_EMPLOYEE_NAME":"江叙"}
+              toolCallTimeoutMs: 180000
+              failOnStartupError: false
+    - id: preset-emp-shenzhou
+      name: '@deepseek-ai/dsh-agent-preset'
+      config:
+        id: emp-shenzhou
+        order: 102
+        name: "沈舟 · 人事行政专员"
+        description: "负责招聘、员工档案、工具与技能分配、权限审批。"
+        plugins:
+          - id: persona
+            name: '@deepseek-ai/dsh-persona'
+            config:
+              prefix: "你是沈舟，岗位是人事行政专员。负责招聘、员工档案、工具与技能分配、权限审批。 你在“一人公司”工作台里直接向老板汇报。回答要简短、具体、先给结论；不要以编程助手或 AI 模型的身份自我介绍；不要提及 dsh、opc-workbench 或代码仓库，除非老板明确问。"
+          - id: agent-instructions
+            name: '@deepseek-ai/dsh-agent-instructions'
+            config:
+              maxBytes: 65536
+          - id: time-context
+            name: '@deepseek-ai/dsh-time-context'
+          - id: tool-fs
+            name: '@deepseek-ai/dsh-tool-fs'
+            config:
+              read: true
+              readImage: true
+              write: true
+              edit: true
+              applyPatch: false
+          - id: tool-fs-search
+            name: '@deepseek-ai/dsh-tool-fs-search'
+            config:
+              sampleOverCapGlobResults: false
+          - id: skill-filesystem
+            name: '@deepseek-ai/dsh-skill-filesystem'
+          - id: tool-skill
+            name: '@deepseek-ai/dsh-tool-skill'
+          - id: command-goal
+            name: '@deepseek-ai/dsh-command-goal'
+          - id: tool-goal
+            name: '@deepseek-ai/dsh-tool-goal'
+          - id: tool-ask-user
+            name: '@deepseek-ai/dsh-tool-ask-user'
+          - id: tool-todo
+            name: '@deepseek-ai/dsh-tool-todo'
+            config:
+              allowParallelInProgress: true
+          - id: tool-web
+            name: '@deepseek-ai/dsh-tool-web'
+            config:
+              fetch: true
+              searchTimeoutMs: 60000
+          - id: tool-present
+            name: '@deepseek-ai/dsh-tool-present'
+            config:
+              maxFiles: 8
+          - id: tool-shell
+            name: '@deepseek-ai/dsh-tool-pwsh'
+          - id: tool-jobs
+            name: '@deepseek-ai/dsh-tool-jobs'
+          - id: tool-schedule
+            name: '@deepseek-ai/dsh-tool-schedule'
+          - id: tool-subagent-control
+            name: '@deepseek-ai/dsh-tool-subagent-control'
+          - id: tool-subagent
+            name: '@deepseek-ai/dsh-tool-subagent'
+            config:
+              provider: "spawn"
+              toolName: "subagent"
+              modelSelection: true
+              modelDiscovery: true
+          - id: tool-subagent-fork
+            name: '@deepseek-ai/dsh-tool-subagent'
+            config:
+              provider: "fork"
+              toolName: "subagent_fork"
+          - id: mcp-company
+            name: '@deepseek-ai/dsh-mcp-client'
+            config:
+              serverName: "company"
+              transport: "stdio"
+              command: "C:\\Users\\蔡\\.workbuddy\\binaries\\node\\versions\\24.14.0\\node.exe"
+              args: ["C:\\Users\\蔡\\WorkBuddy\\2026-11-14-16-28-12\\one-company\\mcp\\company-tools.mjs"]
+              env: {"COMPANY_API":"http://127.0.0.1:4399","COMPANY_EMPLOYEE_ID":"e-shenzhou","COMPANY_EMPLOYEE_NAME":"沈舟"}
+              toolCallTimeoutMs: 180000
+              failOnStartupError: false

@@ -30,3 +30,8 @@ dsh-bundle/manifest.json
 .guide.yaml
 .DS_Store
 Thumbs.db
+
+# 例外：DSH profile 里的本地插件是小体积源码，必须随仓库提交
+!dsh-bundle/profile/profiles/opc-workbench/node_modules/
+!dsh-bundle/profile/profiles/opc-workbench/node_modules/@local/
+!dsh-bundle/profile/profiles/opc-workbench/node_modules/@local/**
