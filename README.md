@@ -948,3 +948,16 @@ GitHub 直连下载 Release 很慢（实测约 27KB/s，153MB 要一个多小时
 
 Windows 路径：`%APPDATA%\one-company-desktop\update.json`（`update.json` 优先级高于安装包内的 `app-update.yml`）。
 镜像可用性会变，失效时删掉这个文件就回到官方源；`gh-proxy.com`、`ghproxy.net` 可作备选。
+
+## 记忆系统（v2 · 0.40.3 起）
+
+参考 DS-Bot（MEMORY.md 索引常驻 + 每轮召回 + 记忆评审）与 dsh-auto-memory（三层记忆 + Tier-0 配额 + L0→expand），按公司台的多员工/多项目结构落地。
+
+- 三层：`rule` 规则（公司制度/长期偏好）、`note` 笔记（项目参数/设备/流程/台账）、`log` 日志（交付/决策/会议，默认 90 天过期）
+- 注入：只带「索引 1200 字（一条一行）」+「按当前问题召回 1600 字 / 最多 4 条 / 每条 420 字」；正文用 `read_memory`，搜索用 `search_memories`
+- 隔离：项目记忆只出现在对应项目的上下文；公司闲聊不带任何项目记忆；员工只能看自己参与的项目和本人记忆
+- 写入：`createMemory` 有卫生门（密钥/乱码/超长单行/纯 JSON 拒绝）、同层同名自动合并；交付验收不再一条一份记忆，改为每项目一条「交付台账」
+- 整理：`POST /api/memories/organize`；升级后首次启动会先 `createDataSnapshot()` 再迁移，占位/过期归档、同名合并、旧交付记录并入台账
+- 常量与算法集中在 `lib/memory-engine.mjs`（`MEMORY_INDEX_BUDGET` / `MEMORY_RECALL_BUDGET` / `MEMORY_LOG_TTL_DAYS`）
+
+实测（89 条真实记忆、江叙 + 手办项目）：记忆块从 6,560 字降到约 2,900 字，整个上下文从 15,469 字降到 11,892 字；检索「18080 预览服务 端口」第一位命中服务台账。
