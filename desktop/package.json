@@ -1,6 +1,6 @@
 {
   "name": "one-company-desktop",
-  "version": "0.40.4",
+  "version": "0.40.5",
   "private": true,
   "description": "一人公司 · 桌面客户端（Electron + 原生 DSH）",
   "author": "一人公司",

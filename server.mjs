@@ -18,12 +18,14 @@ import {
 } from './lib/employee-preset.mjs';
 import { buildEmployeeRules } from './lib/employee-prompt.mjs';
 import {
+  MEMORY_INDEX_BUDGET,
   buildMemoryIndex,
   buildMemoryRecall,
   inferMemoryLayer,
   isMemoryExpired,
   memoryDedupeKey,
   memoryExpiresAt,
+  memoryIndexLine,
   memoryProblem,
   rankMemories,
 } from './lib/memory-engine.mjs';
@@ -2144,21 +2146,83 @@ function selectMemoriesForContext(current, employee, project = null, query = '')
     .slice(0, 24);
 }
 
-function buildSkillContext(current, employee) {
+function skillBody(skill) {
+  return String(skill.promptContent || skill.content || skill.instructions || skill.description || '');
+}
+
+function skillDigest(skill) {
+  const body = skillBody(skill);
+  const headings = body
+    .split('\n')
+    .map((line) => line.trim())
+    .filter((line) => /^#{2,3}\s*D\d+/.test(line))
+    .map((line) => line.replace(/^#+\s*/, '').trim())
+    .slice(0, 20);
+  const intro = body.slice(0, 1200).replace(/\n{3,}/g, '\n\n').trim();
+  return [
+    `### ${skill.name}（${skill.category}）· 闸门摘要`,
+    intro,
+    headings.length ? `【必查项】${headings.join('；')}` : '',
+    `完整判定细则（正则/反例/边界）在交付前用 mcp__company__read_skill 读取「${skill.name}」。`,
+  ]
+    .filter(Boolean)
+    .join('\n');
+}
+
+/**
+ * 技能按需加载：常驻只给「闸门摘要 + 一行索引」，正文用 read_skill 取。
+ * - priority 技能保留摘要（含 D1-D12 清单），避免把交付闸门整段删掉；
+ * - 普通技能只给一行说明；当前任务明显匹配某个技能时，自动带该技能全文（最多 2 个）。
+ */
+function buildSkillContext(current, employee, query = '') {
   if (!employee) return '';
   const catalog = Array.isArray(current.skillCatalog) ? current.skillCatalog : [];
   const assigned = new Set(employee.skills || []);
-  const lines = catalog
+  const skills = catalog
     .filter((skill) => skill.enabled !== false && assigned.has(skill.name))
-    // 闸门类技能优先注入，避免被 5 个技能的上限挤掉
-    .sort((a, b) => Number(b.priority === true) - Number(a.priority === true))
-    .slice(0, 5)
-    .map((skill) => {
-      const limit = skill.priority === true ? 6000 : 1500;
-      const body = String(skill.promptContent || skill.content || skill.instructions || skill.description || '').slice(0, limit);
-      return `### ${skill.name}（${skill.category}）\n${body}`;
-    });
-  return lines.length ? `【岗位技能 SKILL】按这些技能的步骤执行，不要只当作关键词：\n${lines.join('\n\n')}` : '';
+    .sort((a, b) => Number(b.priority === true) - Number(a.priority === true));
+  if (!skills.length) return '';
+  const priority = skills.filter((skill) => skill.priority === true).slice(0, 2);
+  const normal = skills.filter((skill) => skill.priority !== true);
+  const blocks = [];
+  let used = 0;
+  for (const skill of priority) {
+    const digest = skillDigest(skill);
+    if (used + digest.length + 2 > 2600) continue;
+    blocks.push(digest);
+    used += digest.length + 2;
+  }
+  const indexLines = normal.slice(0, 20).map((skill) => {
+    const description = String(skill.description || skill.summary || '').replace(/\s+/g, ' ').slice(0, 90);
+    return `- ${skill.name}（${skill.category || '通用'}）：${description}`;
+  });
+  if (indexLines.length) {
+    const indexText = [
+      '【技能索引】只给名称和用途；需要具体步骤时用 mcp__company__read_skill 读取全文，不要凭技能名猜步骤。',
+      ...indexLines,
+    ].join('\n');
+    blocks.push(indexText);
+    used += indexText.length;
+  }
+  // 当前任务明确命中某个普通技能时，自动带全文（最多 2 个，每个 ≤1000 字）
+  const qTokens = [...new Set(String(query || '').toLowerCase().match(/[\u4e00-\u9fff]{2,}|[a-z0-9]{2,}/g) || [])].slice(0, 12);
+  if (qTokens.length) {
+    let loaded = 0;
+    for (const skill of normal) {
+      if (loaded >= 2) break;
+      const haystack = `${skill.name} ${skill.description || ''}`.toLowerCase();
+      const hits = qTokens.filter((token) => haystack.includes(token)).length;
+      if (hits < 2) continue;
+      const body = skillBody(skill).slice(0, 1000);
+      if (!body || used + body.length > 3800) continue;
+      blocks.push(`### ${skill.name}（按任务匹配自动加载）\n${body}`);
+      used += body.length;
+      loaded += 1;
+    }
+  }
+  return blocks.length
+    ? `【岗位技能 SKILL】优先按闸门摘要和技能索引执行；需要细节时 read_skill，不要只把技能名当关键词：\n${blocks.join('\n\n')}`
+    : '';
 }
 
 function buildExpertContext(current, employee, project = null) {
@@ -2213,11 +2277,64 @@ function buildCatalogContext(current, employee) {
 }
 
 /**
+ * 会话内记忆索引冻结：首次为「员工+项目」选定索引条目后，同一会话内保持这套选型；
+ * 新增记忆用「新增」行补进来（最多 3 条），不会因为刚写了一条记忆就把整个索引重排。
+ * 进程重启或超过 4 小时自动重建选型。
+ */
+const memoryIndexSnapshots = new Map();
+const MEMORY_INDEX_FREEZE_MS = 4 * 3600 * 1000;
+
+function buildFrozenMemoryIndex(visible, key) {
+  const fresh = buildMemoryIndex({ memories: visible });
+  const snapshot = memoryIndexSnapshots.get(key);
+  if (!snapshot || Date.now() - snapshot.builtAt > MEMORY_INDEX_FREEZE_MS || !snapshot.ids.length) {
+    memoryIndexSnapshots.set(key, { ids: fresh.includedIds, builtAt: Date.now() });
+    return fresh.text;
+  }
+  const byId = new Map(visible.map((memory) => [memory.id, memory]));
+  const lines = [];
+  const usedIds = new Set();
+  let used = 0;
+  for (const id of snapshot.ids) {
+    const memory = byId.get(id);
+    if (!memory) continue;
+    const line = memoryIndexLine(memory);
+    if (used + line.length + 1 > MEMORY_INDEX_BUDGET - 220) break;
+    lines.push(line);
+    usedIds.add(id);
+    used += line.length + 1;
+  }
+  // 本会话新增的记忆：最多补 3 条，避免「刚记住却看不到」
+  const extras = visible
+    .filter(
+      (memory) =>
+        !usedIds.has(memory.id) &&
+        !snapshot.ids.includes(memory.id) &&
+        inferMemoryLayer(memory) !== 'log' &&
+        (Date.parse(memory.updatedAt || '') || 0) > snapshot.builtAt,
+    )
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+    .slice(0, 3);
+  for (const memory of extras) {
+    const line = `- [新增] ${memory.name}：${String(memory.abstract || memory.summary || '').replace(/\s+/g, ' ').slice(0, 60)}（${memory.id}）`;
+    if (used + line.length + 1 > MEMORY_INDEX_BUDGET) break;
+    lines.push(line);
+    used += line.length + 1;
+  }
+  const logs = visible.filter((memory) => inferMemoryLayer(memory) === 'log').length;
+  if (logs) {
+    const logLine = `- [日志] 另有 ${logs} 条交付/决策日志，按当前问题自动召回，或用 search_memories 查询`;
+    if (used + logLine.length + 1 <= MEMORY_INDEX_BUDGET) lines.push(logLine);
+  }
+  return lines.join('\n');
+}
+
+/**
  * 记忆上下文 = 索引（常驻、一行一条）+ 召回（按当前问题取 top 4 正文）+ 使用规则。
  *
  * 设计参考 DS-Bot（索引常驻 / 每轮召回）与 dsh-auto-memory（三层记忆 / Tier-0 配额）：
  * - 索引只放 rule + note，log 只给一行统计，不再把 24 条摘要全塞进来；
- * - 召回按 BM25 + 项目/岗位加权，正文片段 ≤600 字、总量 ≤2500 字；
+ * - 召回按 BM25 + 项目/岗位加权，正文片段 ≤420 字、总量 ≤1600 字；
  * - 正文仍由 read_memory / search_memories 按需取。
  */
 function buildMemoryContext(current, employee, project = null, query = '') {
@@ -2228,7 +2345,7 @@ function buildMemoryContext(current, employee, project = null, query = '') {
     return memoryVisibleTo(current, item, employee);
   });
   if (!visible.length) return '';
-  const index = buildMemoryIndex({ memories: visible });
+  const indexText = buildFrozenMemoryIndex(visible, `${employee?.id || 'boss'}:${project?.id || 'company'}`);
   const recall = buildMemoryRecall({
     memories: visible,
     query,
@@ -2236,11 +2353,11 @@ function buildMemoryContext(current, employee, project = null, query = '') {
     employeeId: employee?.id || '',
   });
   const parts = [];
-  if (index.text) {
+  if (indexText) {
     parts.push(
       [
         '【记忆索引】常驻目录，只放一行摘要；需要正文用 mcp__company__read_memory（按 id），找更多用 mcp__company__search_memories。',
-        index.text,
+        indexText,
       ].join('\n'),
     );
   }
@@ -2326,7 +2443,7 @@ function buildCompanyContext(current, context = {}) {
         `${item.name}（${item.id}，${item.category}，${item.model || '型号未填'}，${item.status}，${item.location || '位置未填'}）`,
     )
     .join('；');
-  const skillContext = buildSkillContext(current, employee);
+  const skillContext = buildSkillContext(current, employee, query);
   const expertContext = buildExpertContext(current, employee, project);
   const catalogContext = buildCatalogContext(current, employee);
   const roleText = String(employee?.role || '');
@@ -15324,6 +15441,29 @@ async function executeAgentTool(args = {}, actor = null) {
         workspacePath: project.workspacePath,
       },
       note: '项目已创建，秘书已收到「项目方案与计划书」任务。方案产出前不要派开发/生产任务。',
+    };
+  }
+
+  if (tool === 'read_skill') {
+    const name = String(input.name || '').trim();
+    if (!name) throw new Error('read_skill 需要技能名称');
+    const skill =
+      (store.skillCatalog || []).find((item) => item.name === name) ||
+      (store.skillCatalog || []).find((item) => item.name.includes(name) || name.includes(item.name));
+    if (!skill) throw new Error(`没有找到技能：${name}`);
+    if (skill.enabled === false) throw new Error(`技能已停用：${skill.name}`);
+    const assigned = Array.isArray(actor?.skills) ? actor.skills : [];
+    if (actor && assigned.length && !assigned.includes(skill.name) && !hasFullPermissions(actor)) {
+      throw new Error(`该技能未分配给当前岗位：${skill.name}`);
+    }
+    return {
+      id: skill.id || '',
+      name: skill.name,
+      category: skill.category || '通用',
+      description: skill.description || '',
+      priority: skill.priority === true,
+      content: skillBody(skill).slice(0, 20000),
+      hint: '按技能里的步骤/判定细则执行；执行完再交付结果。',
     };
   }
 

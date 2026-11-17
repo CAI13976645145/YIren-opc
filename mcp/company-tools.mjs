@@ -297,6 +297,18 @@ const tools = [
     },
   },
   {
+    name: 'read_skill',
+    description:
+      '读取一条岗位技能的完整内容（步骤、判定细则、反例）。提示词里只常驻技能摘要/索引；当前任务需要具体做法时，先 read_skill 读全文再执行，不要凭技能名猜步骤。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        name: { type: 'string', description: '技能名称，例如「交付验收」「排期」' },
+      },
+      required: ['name'],
+    },
+  },
+  {
     name: 'save_expert',
     description: '新建或更新专家：名称、职业、领域、简介、技能、标签、绑定员工/项目。',
     inputSchema: {
