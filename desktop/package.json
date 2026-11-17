@@ -1,0 +1,103 @@
+{
+  "name": "one-company-desktop",
+  "version": "0.40.0",
+  "private": true,
+  "description": "一人公司 · 桌面客户端（Electron + 原生 DSH）",
+  "author": "一人公司",
+  "main": "main.js",
+  "scripts": {
+    "start": "electron .",
+    "dist": "electron-builder --win nsis --publish never",
+    "dist:dir": "electron-builder --win dir"
+  },
+  "dependencies": {
+    "electron-updater": "6.6.2"
+  },
+  "devDependencies": {
+    "electron": "33.4.11",
+    "electron-builder": "24.13.3"
+  },
+  "build": {
+    "appId": "com.onecompany.desktop",
+    "productName": "一人公司",
+    "copyright": "Copyright © 2026 一人公司",
+    "directories": {
+      "output": "../dist-electron"
+    },
+    "files": [
+      "main.js",
+      "preload.js",
+      "splash.html",
+      "assets/**"
+    ],
+    "extraResources": [
+      {
+        "from": "../server.mjs",
+        "to": "app/server.mjs"
+      },
+      {
+        "from": "../package.json",
+        "to": "app/package.json"
+      },
+      {
+        "from": "../lib",
+        "to": "app/lib"
+      },
+      {
+        "from": "../mcp",
+        "to": "app/mcp"
+      },
+      {
+        "from": "../presets",
+        "to": "app/presets"
+      },
+      {
+        "from": "../scripts",
+        "to": "app/scripts"
+      },
+      {
+        "from": "../public",
+        "to": "app/public"
+      },
+      {
+        "from": "../vendor",
+        "to": "app/vendor"
+      },
+      {
+        "from": "../data/seed.json",
+        "to": "app/data/seed.json"
+      },
+      {
+        "from": "../data/settings.json",
+        "to": "app/data/settings.json"
+      },
+      {
+        "from": "../dsh-bundle",
+        "to": "dsh"
+      }
+    ],
+    "win": {
+      "target": [
+        "nsis"
+      ],
+      "icon": "assets/icon.ico",
+      "artifactName": "一人公司-Setup-${version}.${ext}"
+    },
+    "nsis": {
+      "oneClick": false,
+      "perMachine": false,
+      "allowToChangeInstallationDirectory": true,
+      "include": "installer.nsh",
+      "createDesktopShortcut": true,
+      "createStartMenuShortcut": true,
+      "shortcutName": "一人公司",
+      "deleteAppDataOnUninstall": false
+    },
+    "publish": [
+      {
+        "provider": "generic",
+        "url": "https://example.com/one-company/updates/"
+      }
+    ]
+  }
+}

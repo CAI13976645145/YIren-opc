@@ -1,0 +1,32 @@
+# 依赖
+node_modules/
+desktop/node_modules/
+
+# 构建产物
+dist/
+dist-electron/
+dist-electron-*/
+desktop/build.log
+desktop/build-*.log
+
+# 本地运行数据：只保留可公开的种子与空白设置
+data/*
+!data/seed.json
+!data/settings.json
+data/settings.local.json
+live-state.json
+*.sse
+*.log
+
+# DSH 运行时二进制：用 npm run prepare:dsh 重新生成
+dsh-bundle/node.exe
+dsh-bundle/node_modules/
+dsh-bundle/manifest.json
+
+# 本地工具与临时文件
+.playwright-cli/
+.ui-policy.mjs
+.tmp*
+.guide.yaml
+.DS_Store
+Thumbs.db

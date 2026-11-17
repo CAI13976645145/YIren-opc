@@ -1,0 +1,814 @@
+{
+  "base": "about:blank",
+  "views": [
+    {
+      "view": "deliverables",
+      "ok": true,
+      "title": "交付物",
+      "textLength": 432,
+      "actions": 20,
+      "note": ""
+    },
+    {
+      "view": "previewdesk",
+      "ok": true,
+      "title": "预览台",
+      "textLength": 169,
+      "actions": 1,
+      "note": ""
+    },
+    {
+      "view": "tasks",
+      "ok": true,
+      "title": "任务",
+      "textLength": 2143,
+      "actions": 51,
+      "note": ""
+    },
+    {
+      "view": "inbox",
+      "ok": true,
+      "title": "收件箱",
+      "textLength": 947,
+      "actions": 8,
+      "note": ""
+    },
+    {
+      "view": "projects",
+      "ok": true,
+      "title": "项目",
+      "textLength": 463,
+      "actions": 21,
+      "note": ""
+    },
+    {
+      "view": "employees",
+      "ok": true,
+      "title": "员工",
+      "textLength": 1824,
+      "actions": 34,
+      "note": ""
+    },
+    {
+      "view": "ledger",
+      "ok": true,
+      "title": "账本",
+      "textLength": 824,
+      "actions": 7,
+      "note": ""
+    },
+    {
+      "view": "reports",
+      "ok": true,
+      "title": "日报周报",
+      "textLength": 160,
+      "actions": 2,
+      "note": ""
+    },
+    {
+      "view": "meetings",
+      "ok": true,
+      "title": "会议",
+      "textLength": 170,
+      "actions": 2,
+      "note": ""
+    },
+    {
+      "view": "org",
+      "ok": true,
+      "title": "组织与绩效",
+      "textLength": 768,
+      "actions": 2,
+      "note": ""
+    },
+    {
+      "view": "teams",
+      "ok": true,
+      "title": "团队",
+      "textLength": 601,
+      "actions": 14,
+      "note": ""
+    },
+    {
+      "view": "automation",
+      "ok": true,
+      "title": "自动化",
+      "textLength": 291,
+      "actions": 13,
+      "note": ""
+    },
+    {
+      "view": "audit",
+      "ok": true,
+      "title": "审计日志",
+      "textLength": 27157,
+      "actions": 4,
+      "note": ""
+    },
+    {
+      "view": "notifications",
+      "ok": true,
+      "title": "通知中心",
+      "textLength": 9876,
+      "actions": 213,
+      "note": ""
+    },
+    {
+      "view": "documents",
+      "ok": true,
+      "title": "文档管理",
+      "textLength": 932,
+      "actions": 7,
+      "note": ""
+    },
+    {
+      "view": "skills",
+      "ok": true,
+      "title": "技能",
+      "textLength": 2767,
+      "actions": 79,
+      "note": ""
+    },
+    {
+      "view": "memories",
+      "ok": true,
+      "title": "记忆",
+      "textLength": 537,
+      "actions": 6,
+      "note": ""
+    },
+    {
+      "view": "tools",
+      "ok": true,
+      "title": "工具",
+      "textLength": 1986,
+      "actions": 39,
+      "note": ""
+    },
+    {
+      "view": "experts",
+      "ok": true,
+      "title": "专家",
+      "textLength": 1197,
+      "actions": 30,
+      "note": ""
+    },
+    {
+      "view": "data",
+      "ok": true,
+      "title": "数据",
+      "textLength": 502,
+      "actions": 5,
+      "note": ""
+    },
+    {
+      "view": "projectfiles",
+      "ok": true,
+      "title": "项目文件",
+      "textLength": 594,
+      "actions": 1,
+      "note": ""
+    },
+    {
+      "view": "workstations",
+      "ok": true,
+      "title": "员工工位",
+      "textLength": 132,
+      "actions": 2,
+      "note": ""
+    },
+    {
+      "view": "templates",
+      "ok": true,
+      "title": "模板市场",
+      "textLength": 261,
+      "actions": 8,
+      "note": ""
+    },
+    {
+      "view": "datacenter",
+      "ok": true,
+      "title": "机房",
+      "textLength": 392,
+      "actions": 8,
+      "note": ""
+    }
+  ],
+  "panels": [
+    {
+      "panel": "tasks",
+      "ok": true,
+      "len": 281,
+      "note": ""
+    },
+    {
+      "panel": "deliverables",
+      "ok": true,
+      "len": 139,
+      "note": ""
+    },
+    {
+      "panel": "memories",
+      "ok": true,
+      "len": 202,
+      "note": ""
+    },
+    {
+      "panel": "servers",
+      "ok": true,
+      "len": 269,
+      "note": ""
+    },
+    {
+      "panel": "employees",
+      "ok": true,
+      "len": 310,
+      "note": ""
+    }
+  ],
+  "modals": [
+    {
+      "view": "tasks",
+      "action": "new-task",
+      "ok": true,
+      "title": "新建任务",
+      "fields": 11,
+      "note": ""
+    },
+    {
+      "view": "employees",
+      "action": "new-employee",
+      "ok": true,
+      "title": "招聘员工",
+      "fields": 8,
+      "note": ""
+    },
+    {
+      "view": "employees",
+      "action": "hire-employee",
+      "ok": true,
+      "title": "按岗位模板招聘",
+      "fields": 18,
+      "note": ""
+    },
+    {
+      "view": "projects",
+      "action": "new-project",
+      "ok": true,
+      "title": "新建项目",
+      "fields": 8,
+      "note": ""
+    },
+    {
+      "view": "teams",
+      "action": "new-team",
+      "ok": true,
+      "title": "新建团队",
+      "fields": 18,
+      "note": ""
+    },
+    {
+      "view": "memories",
+      "action": "new-memory",
+      "ok": true,
+      "title": "新建记忆",
+      "fields": 6,
+      "note": ""
+    },
+    {
+      "view": "skills",
+      "action": "new-skill",
+      "ok": true,
+      "title": "新增技能",
+      "fields": 5,
+      "note": ""
+    },
+    {
+      "view": "tools",
+      "action": "new-tool",
+      "ok": true,
+      "title": "新增工具",
+      "fields": 8,
+      "note": ""
+    },
+    {
+      "view": "experts",
+      "action": "new-expert",
+      "ok": true,
+      "title": "新增专家",
+      "fields": 23,
+      "note": ""
+    },
+    {
+      "view": "datacenter",
+      "action": "new-server",
+      "ok": true,
+      "title": "添加服务器",
+      "fields": 10,
+      "note": ""
+    },
+    {
+      "view": "automation",
+      "action": "new-schedule",
+      "ok": true,
+      "title": "新建定时任务",
+      "fields": 7,
+      "note": ""
+    },
+    {
+      "view": "meetings",
+      "action": "new-meeting",
+      "ok": true,
+      "title": "新建圆桌会议",
+      "fields": 14,
+      "note": ""
+    },
+    {
+      "view": "deliverables",
+      "action": "new-deliverable",
+      "ok": true,
+      "title": "上传交付物",
+      "fields": 5,
+      "note": ""
+    }
+  ],
+  "settingsTabs": [
+    {
+      "tab": "model",
+      "ok": true,
+      "len": 417
+    },
+    {
+      "tab": "routing",
+      "ok": true,
+      "len": 311
+    },
+    {
+      "tab": "channels",
+      "ok": true,
+      "len": 413
+    },
+    {
+      "tab": "policy",
+      "ok": true,
+      "len": 389
+    },
+    {
+      "tab": "usage",
+      "ok": true,
+      "len": 411
+    },
+    {
+      "tab": "runtime",
+      "ok": true,
+      "len": 271
+    }
+  ],
+  "interactions": [
+    {
+      "name": "打开设置",
+      "ok": true
+    },
+    {
+      "name": "使用指南入口",
+      "ok": true,
+      "detail": "http://127.0.0.1:4401/guide.html"
+    },
+    {
+      "name": "顶部搜索",
+      "ok": true,
+      "detail": "检索"
+    },
+    {
+      "name": "通知铃铛",
+      "ok": true,
+      "detail": "通知中心"
+    },
+    {
+      "name": "对话坞下拉",
+      "ok": true,
+      "detail": "5 项目 / 11 员工"
+    },
+    {
+      "name": "对话坞收起/展开",
+      "ok": true
+    },
+    {
+      "name": "预览台渲染",
+      "ok": true,
+      "detail": "1 个操作按钮"
+    },
+    {
+      "name": "移动端底部导航",
+      "ok": true,
+      "detail": "nav=true menu=true"
+    },
+    {
+      "name": "移动端对话坞展开",
+      "ok": true
+    },
+    {
+      "view": "tasks",
+      "action": "toggle-task",
+      "ok": true,
+      "note": "任务已完成"
+    },
+    {
+      "view": "tasks",
+      "action": "edit-task",
+      "ok": true,
+      "note": "任务已完成"
+    },
+    {
+      "view": "tasks",
+      "action": "handoff-task",
+      "ok": true,
+      "note": "任务已完成"
+    },
+    {
+      "view": "projects",
+      "action": "edit-project",
+      "ok": true,
+      "note": "任务已完成"
+    },
+    {
+      "view": "projects",
+      "action": "project-snapshots",
+      "ok": true,
+      "note": "任务已完成"
+    },
+    {
+      "view": "projects",
+      "action": "project-snapshot",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "skills",
+      "action": "edit-skill",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "skills",
+      "action": "assign-skill",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "tools",
+      "action": "edit-tool",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "tools",
+      "action": "assign-tool",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "experts",
+      "action": "expert-detail",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "experts",
+      "action": "assign-expert",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "experts",
+      "action": "import-workbuddy-experts",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "teams",
+      "action": "edit-team",
+      "ok": true,
+      "note": "快照失败：Command failed: git --git-dir C:\\Users\\蔡\\AppData\\Local\\"
+    },
+    {
+      "view": "reports",
+      "action": "generate-report",
+      "ok": true,
+      "note": "报告已生成"
+    },
+    {
+      "view": "notifications",
+      "action": "refresh-notifications",
+      "ok": true,
+      "note": "报告已生成"
+    },
+    {
+      "view": "notifications",
+      "action": "mark-all-notifications",
+      "ok": true,
+      "note": "全部通知已读"
+    },
+    {
+      "view": "audit",
+      "action": "verify-audit",
+      "ok": true,
+      "note": "哈希链完整（141 条）"
+    },
+    {
+      "view": "workstations",
+      "action": "refresh-workstations",
+      "ok": true,
+      "note": "哈希链完整（141 条）"
+    },
+    {
+      "view": "datacenter",
+      "action": "check-servers",
+      "ok": true,
+      "note": "哈希链完整（141 条）"
+    },
+    {
+      "view": "templates",
+      "action": "import-template",
+      "ok": true,
+      "note": "哈希链完整（141 条）"
+    },
+    {
+      "view": "previewdesk",
+      "action": "preview-clear-history",
+      "ok": true,
+      "note": "哈希链完整（141 条）"
+    },
+    {
+      "view": "deliverables",
+      "action": "preview-deliverable",
+      "ok": true,
+      "note": "预览台 · 服务器状态已刷新"
+    },
+    {
+      "view": "deliverables",
+      "action": "approve-deliverable",
+      "ok": true,
+      "note": "交付物 · 交付物已通过，任务已完成"
+    },
+    {
+      "view": "deliverables",
+      "action": "reject-deliverable",
+      "ok": true,
+      "note": "交付物 · 交付物已通过，任务已完成"
+    },
+    {
+      "view": "tasks",
+      "action": "run-task",
+      "ok": true,
+      "note": "任务 · 任务已开始执行，完成后会自动生成交付物"
+    },
+    {
+      "view": "inbox",
+      "action": "resolve-decision",
+      "ok": true,
+      "note": "收件箱 · 已退回：权限申请：project.write"
+    },
+    {
+      "view": "projects",
+      "action": "open-project",
+      "ok": true,
+      "note": "交付物 · 已切换到底部项目群"
+    },
+    {
+      "view": "employees",
+      "action": "open-employee",
+      "ok": true,
+      "note": "员工 · 已切换到底部对话"
+    },
+    {
+      "view": "employees",
+      "action": "edit-employee",
+      "ok": true,
+      "note": "员工 · 已切换到底部对话"
+    },
+    {
+      "view": "experts",
+      "action": "edit-expert",
+      "ok": true,
+      "note": "专家 · 已切换到底部对话"
+    },
+    {
+      "view": "experts",
+      "action": "chat-expert",
+      "ok": true,
+      "note": "员工 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "teams",
+      "action": "load-teams",
+      "ok": true,
+      "note": "团队 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "datacenter",
+      "action": "open-server",
+      "ok": true,
+      "note": "机房 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "templates",
+      "action": "apply-template",
+      "ok": true,
+      "note": "模板市场 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "templates",
+      "action": "template-tab",
+      "ok": true,
+      "note": "模板市场 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "org",
+      "action": "org-tab",
+      "ok": true,
+      "note": "组织与绩效 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "ledger",
+      "action": "ledger-range",
+      "ok": true,
+      "note": "账本 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "ledger",
+      "action": "filter-ledger",
+      "ok": true,
+      "note": "账本 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "audit",
+      "action": "filter-audit",
+      "ok": true,
+      "note": "审计日志 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "workstations",
+      "action": "filter-workstations",
+      "ok": true,
+      "note": "员工工位 · 已切换到 白鹭 的对话"
+    },
+    {
+      "view": "workstations",
+      "action": "station-sync",
+      "ok": true,
+      "note": "员工工位 · 已归档 0 个文件到项目工作区"
+    },
+    {
+      "view": "projectfiles",
+      "action": "refresh-project-files",
+      "ok": true,
+      "note": "项目文件 · 已归档 0 个文件到项目工作区"
+    },
+    {
+      "view": "data",
+      "action": "dataset-fields",
+      "ok": true,
+      "note": "数据 · 已归档 0 个文件到项目工作区"
+    },
+    {
+      "view": "automation",
+      "action": "toggle-schedule",
+      "ok": true,
+      "note": "自动化 · 已归档 0 个文件到项目工作区"
+    },
+    {
+      "view": "automation",
+      "action": "run-schedule",
+      "ok": true,
+      "note": "自动化 · 已创建站会草稿：一人公司 Web 客户端 · 今日站会"
+    },
+    {
+      "view": "tasks",
+      "action": "toggle-autonomy",
+      "ok": true,
+      "note": "任务 · 自动开工已开启：待办任务会按并行槽位执行"
+    },
+    {
+      "view": "notifications",
+      "action": "read-notification",
+      "ok": true,
+      "note": "通知中心 · 自动开工已开启：待办任务会按并行槽位执行"
+    },
+    {
+      "view": "notifications",
+      "action": "delete-notification",
+      "ok": true,
+      "note": "通知中心 · 自动开工已开启：待办任务会按并行槽位执行"
+    },
+    {
+      "view": "previewdesk",
+      "action": "preview-open",
+      "ok": true,
+      "note": "预览台 · 自动开工已开启：待办任务会按并行槽位执行"
+    },
+    {
+      "view": "tasks",
+      "action": "set-concurrency",
+      "ok": true,
+      "note": "任务 · 并行槽位已设为 1"
+    },
+    {
+      "view": "tasks",
+      "action": "collect-deliverable",
+      "ok": true,
+      "note": "任务 · 并行槽位已设为 1"
+    },
+    {
+      "view": "deliverables",
+      "action": "filter-deliverables",
+      "ok": true,
+      "note": "交付物 · 并行槽位已设为 1"
+    },
+    {
+      "view": "employees",
+      "action": "employee-archive-filter",
+      "ok": true,
+      "note": "员工 · 并行槽位已设为 1"
+    },
+    {
+      "view": "meetings",
+      "action": "open-meeting",
+      "ok": true,
+      "note": "会议 · 并行槽位已设为 1"
+    },
+    {
+      "view": "notifications",
+      "action": "open-notification",
+      "ok": true,
+      "note": "任务 · 并行槽位已设为 1"
+    },
+    {
+      "view": "notifications",
+      "action": "notification-filter",
+      "ok": true,
+      "note": "通知中心 · 并行槽位已设为 1"
+    },
+    {
+      "view": "documents",
+      "action": "preview-document",
+      "ok": true,
+      "note": "文档管理 · 并行槽位已设为 1"
+    },
+    {
+      "view": "datacenter",
+      "action": "datacenter-group",
+      "ok": true,
+      "note": "机房 · 并行槽位已设为 1"
+    },
+    {
+      "view": "datacenter",
+      "action": "toggle-autostart",
+      "ok": true,
+      "note": "机房 · 已关闭服务自启"
+    },
+    {
+      "name": "记忆详情 → 编辑记忆",
+      "ok": true
+    },
+    {
+      "name": "任务详情 → 交付物验收",
+      "ok": true,
+      "detail": "已处理 1 份交付物"
+    },
+    {
+      "name": "右栏员工状态刷新",
+      "ok": true,
+      "detail": "已处理 1 份交付物"
+    }
+  ],
+  "errors": [
+    "console: Failed to load resource: the server responded with a status of 500 (Internal Server Error)"
+  ],
+  "apiErrors": [
+    "500 POST /api/projects/snapshot"
+  ],
+  "consoleWarnings": [],
+  "coverage": {
+    "total": 80,
+    "covered": 72,
+    "uncovered": [
+      "archive-employee",
+      "delete-schedule",
+      "delete-team",
+      "export-audit",
+      "export-ledger",
+      "open-outbound",
+      "reset-audit",
+      "reset-ledger"
+    ]
+  },
+  "summary": {
+    "views": "24/24",
+    "panels": "5/5",
+    "modals": "13/13",
+    "settingsTabs": "6/6",
+    "interactions": "72/72",
+    "actions": "72/80"
+  }
+}

@@ -1,0 +1,759 @@
+{
+  "base": "http://127.0.0.1:4401",
+  "at": "2026-11-16T06:05:15.039Z",
+  "total": 125,
+  "passed": 117,
+  "failed": 8,
+  "results": [
+    {
+      "section": "A. 基础 / 状态",
+      "name": "GET /api/health 健康检查",
+      "ok": true,
+      "detail": "v0.38.0"
+    },
+    {
+      "section": "A. 基础 / 状态",
+      "name": "GET /api/state 全量状态",
+      "ok": true,
+      "detail": ""
+    },
+    {
+      "section": "B. 设置 / 模型",
+      "name": "GET /api/settings 读取设置",
+      "ok": false,
+      "detail": "缺少模型配置"
+    },
+    {
+      "section": "B. 设置 / 模型",
+      "name": "POST /api/settings 保存设置（幂等回写）",
+      "ok": true,
+      "detail": "model="
+    },
+    {
+      "section": "B. 设置 / 模型",
+      "name": "POST /api/settings 非法 BaseURL 应为 400",
+      "ok": true,
+      "detail": "INVALID"
+    },
+    {
+      "section": "B. 设置 / 模型",
+      "name": "POST /api/settings/test 模型连通性",
+      "ok": false,
+      "detail": "HTTP 400"
+    },
+    {
+      "section": "B. 设置 / 模型",
+      "name": "POST /api/settings/channels/test 渠道测试（webhook 缺参校验）",
+      "ok": true,
+      "detail": "HTTP 400"
+    },
+    {
+      "section": "B. 设置 / 模型",
+      "name": "GET /api/models 模型目录",
+      "ok": true,
+      "detail": "bridge=false 有目录"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "GET /api/ledger 账本汇总",
+      "ok": true,
+      "detail": "summary=true rows=0"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "GET /api/ledger/export CSV 导出",
+      "ok": true,
+      "detail": "72 字节"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "GET /api/audit 审计日志",
+      "ok": true,
+      "detail": "3 条 / 总计 3"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "GET /api/audit/verify 哈希链校验",
+      "ok": true,
+      "detail": "3 条链路完整"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "GET /api/audit/export 审计导出",
+      "ok": true,
+      "detail": "877 字节"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "GET /api/notifications 通知列表",
+      "ok": true,
+      "detail": "1 条"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "POST /api/notifications/read 标记已读",
+      "ok": true,
+      "detail": "全部已读"
+    },
+    {
+      "section": "C. 账本 / 审计 / 通知",
+      "name": "POST /api/notifications/delete 删除通知（无 id 应安全返回）",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/tools 工具目录",
+      "ok": true,
+      "detail": "30 个工具"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/skills 技能目录",
+      "ok": true,
+      "detail": "51 个技能"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/experts 专家目录",
+      "ok": true,
+      "detail": "6 位专家"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/experts/content 专家正文",
+      "ok": true,
+      "detail": "35 字"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/experts/workbuddy 扫描本地专家",
+      "ok": true,
+      "detail": "候选 36 个 / 已扫 C:\\Users\\蔡\\.workbuddy\\plugins\\cache\\experts,C:\\Users\\蔡\\.workbuddy\\plugins\\cache\\my-experts"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/templates 模板市场",
+      "ok": true,
+      "detail": "14 个模板"
+    },
+    {
+      "section": "D. 公司资产 / 目录",
+      "name": "GET /api/templates/export 模板导出",
+      "ok": true,
+      "detail": "975 字节"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/employees 新建员工",
+      "ok": true,
+      "detail": "回归测试员 preset=false"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/employees/update 更新员工",
+      "ok": true,
+      "detail": "高级测试工程师"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/employees/hire 按岗位模板招聘",
+      "ok": true,
+      "detail": "研发工程师 技能4 工具9 专家1"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/tools/assign 分配工具（批量）",
+      "ok": true,
+      "detail": "更新 4"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/skills/assign 分配技能（批量）",
+      "ok": true,
+      "detail": "更新 1"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/experts/assign 绑定专家",
+      "ok": true,
+      "detail": "1 位专家"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "GET /api/agent-tools/context-preview 上下文预览",
+      "ok": true,
+      "detail": "回归测试员 记忆0"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/employees/archive 归档交接",
+      "ok": true,
+      "detail": "转交 0 个任务"
+    },
+    {
+      "section": "E. 员工全生命周期",
+      "name": "POST /api/employees/restore 恢复员工",
+      "ok": true,
+      "detail": "已恢复"
+    },
+    {
+      "section": "F. 项目",
+      "name": "POST /api/projects 新建项目",
+      "ok": true,
+      "detail": "回归测试项目"
+    },
+    {
+      "section": "F. 项目",
+      "name": "POST /api/projects/update 更新项目",
+      "ok": true,
+      "detail": "进行中"
+    },
+    {
+      "section": "F. 项目",
+      "name": "POST /api/projects/snapshot 创建快照",
+      "ok": true,
+      "detail": "0ddb810adf11"
+    },
+    {
+      "section": "F. 项目",
+      "name": "GET /api/projects/snapshots 快照列表",
+      "ok": true,
+      "detail": "2 个快照"
+    },
+    {
+      "section": "F. 项目",
+      "name": "POST /api/projects/rollback 回滚（需确认）",
+      "ok": true,
+      "detail": "已回滚"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks 新建任务",
+      "ok": true,
+      "detail": "回归任务 · 主流程"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/update 更新任务",
+      "ok": true,
+      "detail": "紧急"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/toggle 勾选完成 / 取消",
+      "ok": true,
+      "detail": "双向切换正常"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/from-message 从消息建任务",
+      "ok": true,
+      "detail": "请把这份回归报告整理成任务"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/handoff 任务转交",
+      "ok": true,
+      "detail": "沈舟"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/run 启动执行（预期 202 或并发限制）",
+      "ok": true,
+      "detail": "HTTP 202 任务已开始执行"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/cancel 停止不存在的运行应 404",
+      "ok": true,
+      "detail": "NOT_RUNNING"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/resume 断点继续（预期 202/409）",
+      "ok": true,
+      "detail": "HTTP 409"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/tasks/review 验收（无待验收应 400）",
+      "ok": true,
+      "detail": "HTTP 400 NO_PENDING"
+    },
+    {
+      "section": "G. 任务",
+      "name": "POST /api/autonomy 自主开工开关",
+      "ok": true,
+      "detail": "enabled=true 并发=2（测试后已关闭）"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "POST /api/deliverables/upload 本地上传",
+      "ok": true,
+      "detail": "回归交付物.md v1"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "GET /api/deliverables/content 预览正文",
+      "ok": true,
+      "detail": "25 字"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "GET /api/deliverables/raw 原文下载",
+      "ok": true,
+      "detail": "25 字节"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "GET /api/office/preview Office 预览（md 走降级）",
+      "ok": true,
+      "detail": "ok=false"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "POST /api/deliverables/review 打回（缺原因应 400）",
+      "ok": true,
+      "detail": "INVALID"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "POST /api/deliverables/review 验收通过",
+      "ok": true,
+      "detail": "已通过"
+    },
+    {
+      "section": "H. 交付物",
+      "name": "POST /api/deliverables 提交工作区文件",
+      "ok": true,
+      "detail": "HTTP 400 INVALID_FILE"
+    },
+    {
+      "section": "I. 记忆",
+      "name": "POST /api/memories 新建记忆",
+      "ok": true,
+      "detail": "回归记忆 v1"
+    },
+    {
+      "section": "I. 记忆",
+      "name": "GET /api/memories 列表",
+      "ok": true,
+      "detail": "6 条"
+    },
+    {
+      "section": "I. 记忆",
+      "name": "GET /api/memories/:id 详情",
+      "ok": true,
+      "detail": "172 字"
+    },
+    {
+      "section": "I. 记忆",
+      "name": "POST /api/memories/update 更新（版本+1）",
+      "ok": true,
+      "detail": "v2"
+    },
+    {
+      "section": "I. 记忆",
+      "name": "POST /api/memories/update 版本冲突应 409",
+      "ok": true,
+      "detail": "MEMORY_CONFLICT"
+    },
+    {
+      "section": "I. 记忆",
+      "name": "POST /api/memories/rollback 回滚版本",
+      "ok": true,
+      "detail": "v3"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/decisions 提交决策卡",
+      "ok": true,
+      "detail": "回归决策：是否继续扩编"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/decisions/resolve 拍板",
+      "ok": true,
+      "detail": "approve"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/approvals/request 写前审批",
+      "ok": true,
+      "detail": "ap-1794809095230-k3p"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "GET /api/approvals/:id 查询审批",
+      "ok": false,
+      "detail": "期望 pending 实际 approved"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/approvals/decide 拒绝需原因",
+      "ok": false,
+      "detail": " 期望 400 实际 409 {\"ok\":false,\"code\":\"ALREADY_DECIDED\",\"error\":\"审批已经处理过\"}"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/approvals/decide 批准",
+      "ok": false,
+      "detail": " HTTP 409 {\"ok\":false,\"code\":\"ALREADY_DECIDED\",\"error\":\"审批已经处理过\"}"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/outbound 外部动作（转审批）",
+      "ok": true,
+      "detail": "L4 · 外部动作"
+    },
+    {
+      "section": "J. 决策 / 审批 / 外部动作",
+      "name": "POST /api/approvals/decide 批准外部动作（写入 outbox）",
+      "ok": true,
+      "detail": "outbox=1"
+    },
+    {
+      "section": "K. 工位 / 项目文件",
+      "name": "GET /api/project-files 项目文件",
+      "ok": true,
+      "detail": "0 个文件"
+    },
+    {
+      "section": "K. 工位 / 项目文件",
+      "name": "GET /api/stations 工位列表",
+      "ok": true,
+      "detail": "2 个工位"
+    },
+    {
+      "section": "K. 工位 / 项目文件",
+      "name": "POST /api/stations/sync 同步工位",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "section": "K. 工位 / 项目文件",
+      "name": "POST /api/stations/clean 清理工位（需确认）",
+      "ok": true,
+      "detail": "已清理"
+    },
+    {
+      "section": "K. 工位 / 项目文件",
+      "name": "GET /api/employee-files 员工文件",
+      "ok": true,
+      "detail": "0 个文件"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "GET /api/teams 团队列表",
+      "ok": true,
+      "detail": "0 个团队"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "POST /api/teams 新建团队",
+      "ok": true,
+      "detail": "回归测试组 2 人"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "POST /api/teams/delete 删除团队",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "POST /api/reports/generate 生成日报",
+      "ok": true,
+      "detail": "日报 · 2026-11-16"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "GET /api/reports 报表列表",
+      "ok": true,
+      "detail": "1 份"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "GET /api/reports/export 报表导出",
+      "ok": true,
+      "detail": "503 字节"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "GET /api/performance 绩效",
+      "ok": true,
+      "detail": "4 人"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "GET /api/org 组织矩阵",
+      "ok": true,
+      "detail": "4 部门 / 4 人"
+    },
+    {
+      "section": "L. 团队 / 运营中心",
+      "name": "GET /api/search 混合检索",
+      "ok": true,
+      "detail": "21 条结果"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/templates/import 导入模板",
+      "ok": true,
+      "detail": "回归验收模板"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/templates/apply 项目模板套用",
+      "ok": true,
+      "detail": "生成任务 4"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/templates/apply 验收模板套用",
+      "ok": true,
+      "detail": "已写入项目默认验收"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/schedules 新建定时任务",
+      "ok": true,
+      "detail": "回归定时任务"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "GET /api/schedules 定时任务列表",
+      "ok": true,
+      "detail": "1 个"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/schedules/toggle 启停",
+      "ok": true,
+      "detail": "enabled=false"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/schedules/run 手动运行",
+      "ok": true,
+      "detail": "run=undefined"
+    },
+    {
+      "section": "M. 模板 / 自动化",
+      "name": "POST /api/schedules/delete 删除",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "N. 会议",
+      "name": "POST /api/meetings 创建会议",
+      "ok": true,
+      "detail": "回归圆桌 2 人"
+    },
+    {
+      "section": "N. 会议",
+      "name": "GET /api/meetings 会议列表",
+      "ok": true,
+      "detail": "1 场"
+    },
+    {
+      "section": "N. 会议",
+      "name": "GET /api/meetings/:id/minutes 纪要下载",
+      "ok": true,
+      "detail": "14 字节"
+    },
+    {
+      "section": "N. 会议",
+      "name": "POST /api/meetings/end 结束会议并生成行动项",
+      "ok": true,
+      "detail": "行动项 0"
+    },
+    {
+      "section": "N. 会议",
+      "name": "POST /api/meetings/action 行动项转任务",
+      "ok": true,
+      "detail": "无未转行动项，跳过"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "GET /api/servers 服务器与环境",
+      "ok": true,
+      "detail": "1 台"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/check 实时健康检查",
+      "ok": true,
+      "detail": "1 台 / 2026-11-16T06:04:55.910Z"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers 新增服务器",
+      "ok": true,
+      "detail": "回归节点"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/service 添加服务",
+      "ok": true,
+      "detail": "回归服务"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/action 启动服务",
+      "ok": true,
+      "detail": "HTTP 500 这个服务没有配置启动命令"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/action 重启服务",
+      "ok": true,
+      "detail": "HTTP 500"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/action 停止服务",
+      "ok": true,
+      "detail": "HTTP 500"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "GET /api/servers/log 服务日志",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/batch 批量操作",
+      "ok": true,
+      "detail": "HTTP 200"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/autostart 随应用自启",
+      "ok": true,
+      "detail": "autoStart=false"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/ssh-test 本机模式应拒绝",
+      "ok": true,
+      "detail": "INVALID"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/service/delete 删除服务",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "O. 机房 / 服务器",
+      "name": "POST /api/servers/delete 删除服务器",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/tools 新建工具",
+      "ok": true,
+      "detail": "regression.tool"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/tools 更新工具",
+      "ok": true,
+      "detail": "回归工具 v2"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/tools/delete 删除工具",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/tools/delete 内置工具应拒绝",
+      "ok": true,
+      "detail": "HTTP 400"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/skills 新建技能",
+      "ok": true,
+      "detail": "回归技能"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/skills 更新技能",
+      "ok": true,
+      "detail": "v2"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/skills/delete 删除技能",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/experts 新建专家",
+      "ok": true,
+      "detail": "回归专家"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/experts 更新专家",
+      "ok": true,
+      "detail": "更新后的专家描述"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/experts/delete 删除专家",
+      "ok": true,
+      "detail": "已删除"
+    },
+    {
+      "section": "P. 资产 CRUD",
+      "name": "POST /api/experts/import 从 WorkBuddy 导入专家",
+      "ok": true,
+      "detail": "HTTP 200 导入 1"
+    },
+    {
+      "section": "Q. 真实员工对话（dsh）",
+      "name": "POST /api/chat/stream 单聊流式",
+      "ok": false,
+      "detail": "流内错误：fetch failed"
+    },
+    {
+      "section": "Q. 真实员工对话（dsh）",
+      "name": "POST /api/chat 阻塞式对话",
+      "ok": false,
+      "detail": "HTTP 502 {\"ok\":false,\"code\":\"DSH_UNAVAILABLE\",\"error\":\"fetch failed\",\"state\":{\"company\":{\"name\":\"拾光工作室\",\"product\":\"一人公司\",\"owner\":\"老板\",\"date\":\"2026-11-14\",\"greeting\":\"晚上好，老板\"},\"metrics\":{\"decisions\":0,\"activeTa"
+    },
+    {
+      "section": "Q. 真实员工对话（dsh）",
+      "name": "POST /api/group-chat/stream 项目群流式",
+      "ok": true,
+      "detail": "4 事件"
+    },
+    {
+      "section": "Q. 真实员工对话（dsh）",
+      "name": "POST /api/chat/cancel 非法 runId 应 404",
+      "ok": true,
+      "detail": "NOT_FOUND"
+    },
+    {
+      "section": "R. 公司内部工具接口",
+      "name": "POST /api/agent-tools/execute 无令牌应 401",
+      "ok": true,
+      "detail": "UNAUTHORIZED"
+    },
+    {
+      "section": "R. 公司内部工具接口",
+      "name": "POST /api/agent-tools/execute 有令牌执行 list_catalog",
+      "ok": false,
+      "detail": "HTTP 401 {\"ok\":false,\"code\":\"UNAUTHORIZED\",\"error\":\"公司工具令牌无效\"}"
+    }
+  ]
+}

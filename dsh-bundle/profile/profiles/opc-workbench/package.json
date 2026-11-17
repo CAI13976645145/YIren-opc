@@ -1,0 +1,20 @@
+{
+  "name": "dsh-profile-opc-workbench",
+  "private": true,
+  "dependencies": {
+    "@local/employee-presets": "link:./node_modules/@local/employee-presets",
+    "@local/opc-probe": "link:./node_modules/@local/opc-probe",
+    "@local/opc-runtime-bridge": "link:./node_modules/@local/opc-runtime-bridge"
+  },
+  "dsh": {
+    "profile": {
+      "bundles": [
+        "@deepseek-ai/dsh-base",
+        "@deepseek-ai/dsh-web-app",
+        "@local/employee-presets",
+        "@local/opc-probe",
+        "@local/opc-runtime-bridge"
+      ]
+    }
+  }
+}

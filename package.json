@@ -1,0 +1,15 @@
+{
+  "name": "one-company-web",
+  "version": "0.40.0",
+  "private": true,
+  "type": "module",
+  "description": "一人公司 · 独立 Web 客户端",
+  "scripts": {
+    "start": "node server.mjs",
+    "dsh": "node scripts/start-dsh.mjs",
+    "presets:generate": "node scripts/generate-presets.mjs",
+    "test:api": "node tests/api-regression.mjs",
+    "test:e2e": "node tests/e2e-new-project.mjs",
+    "prepare:dsh": "node scripts/prepare-dsh-bundle.mjs"
+  }
+}
