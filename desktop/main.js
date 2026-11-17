@@ -562,6 +562,54 @@ function readUpdateConfig() {
   return updateConfig;
 }
 
+let updateProgressWindow = null;
+
+/** 下载更新时显示一个置顶小窗，避免 153MB 下载期间看起来像卡死。 */
+function openUpdateProgress(version) {
+  if (updateProgressWindow && !updateProgressWindow.isDestroyed()) return updateProgressWindow;
+  const win = new BrowserWindow({
+    width: 460,
+    height: 190,
+    frame: false,
+    resizable: false,
+    alwaysOnTop: true,
+    show: false,
+    backgroundColor: '#0f172a',
+    webPreferences: { nodeIntegration: false, contextIsolation: true, sandbox: true },
+  });
+  const html = `<!doctype html><html><head><meta charset="utf-8"><style>
+    body{margin:0;font-family:"Microsoft YaHei",sans-serif;background:#0f172a;color:#e2e8f0;padding:24px;box-sizing:border-box}
+    h2{margin:0 0 8px;font-size:15px;font-weight:600}
+    #sub{font-size:12px;color:#94a3b8;margin-bottom:16px;line-height:1.5}
+    .track{height:8px;background:#1e293b;border-radius:999px;overflow:hidden}
+    #bar{height:100%;width:0%;background:linear-gradient(90deg,#38bdf8,#6366f1);transition:width .2s}
+    #pct{margin-top:10px;font-size:12px;color:#cbd5e1;display:flex;justify-content:space-between;gap:12px}
+  </style></head><body>
+    <h2>正在下载更新 ${version}</h2>
+    <div id="sub">下载完成后会自动安装并重启，请不要关闭客户端。</div>
+    <div class="track"><div id="bar"></div></div>
+    <div id="pct"><span id="left">0%</span><span id="right"></span></div>
+    <script>
+      window.setProgress = (percent, right) => {
+        document.getElementById('bar').style.width = percent + '%';
+        document.getElementById('left').textContent = percent + '%';
+        document.getElementById('right').textContent = right || '';
+      };
+      window.setMessage = (title, sub) => {
+        document.querySelector('h2').textContent = title;
+        if (sub) document.getElementById('sub').textContent = sub;
+      };
+    </script>
+  </body></html>`;
+  win.loadURL('data:text/html;charset=utf-8,' + encodeURIComponent(html));
+  win.once('ready-to-show', () => win.show());
+  win.on('closed', () => {
+    updateProgressWindow = null;
+  });
+  updateProgressWindow = win;
+  return win;
+}
+
 async function checkForUpdates(manual = false) {
   const config = readUpdateConfig();
   try {
@@ -589,6 +637,9 @@ async function checkForUpdates(manual = false) {
     }
     autoUpdater.autoDownload = false;
     autoUpdater.autoInstallOnAppQuit = true;
+    // 直接全量下载：0.40.x 的旧 blockmap 没有随新版本发布，差量请求只会多一次 404 和等待
+    autoUpdater.disableDifferentialDownload = true;
+    autoUpdater.autoRunAppAfterInstall = true;
     autoUpdater.logger = console;
     const result = await autoUpdater.checkForUpdates();
     if (!result || !result.updateInfo) return;
@@ -604,11 +655,39 @@ async function checkForUpdates(manual = false) {
       defaultId: 0,
       title: '发现新版本',
       message: `新版本 ${result.updateInfo.version} 可用`,
-      detail: '下载完成后会自动安装并重启。',
+      detail: `当前版本 ${app.getVersion()}，安装包约 153MB，下载完成后会自动安装并重启。`,
     });
-    if (answer.response === 0) {
-      autoUpdater.once('update-downloaded', () => autoUpdater.quitAndInstall());
+    if (answer.response !== 0) return;
+    openUpdateProgress(result.updateInfo.version);
+    autoUpdater.on('download-progress', (progress) => {
+      const win = updateProgressWindow;
+      if (!win || win.isDestroyed()) return;
+      const percent = Math.max(0, Math.min(100, Math.round(Number(progress?.percent) || 0)));
+      const left = `${(Number(progress?.transferred) / 1024 / 1024).toFixed(0)} / ${(Number(progress?.total) / 1024 / 1024).toFixed(0)} MB`;
+      const speed = progress?.bytesPerSecond ? `${(Number(progress.bytesPerSecond) / 1024 / 1024).toFixed(1)} MB/s` : '';
+      win.webContents
+        .executeJavaScript(`window.setProgress(${percent}, ${JSON.stringify(`${left}  ${speed}`)})`)
+        .catch(() => {});
+    });
+    autoUpdater.once('update-downloaded', () => {
+      const win = updateProgressWindow;
+      if (win && !win.isDestroyed()) {
+        win.webContents
+          .executeJavaScript("window.setMessage('下载完成，正在安装…', '客户端会关闭并自动重启，请稍候')")
+          .catch(() => {});
+      }
+      setTimeout(() => autoUpdater.quitAndInstall(false, true), 900);
+    });
+    try {
       await autoUpdater.downloadUpdate();
+    } catch (error) {
+      if (updateProgressWindow && !updateProgressWindow.isDestroyed()) updateProgressWindow.destroy();
+      dialog.showMessageBox({
+        type: 'error',
+        title: '下载更新失败',
+        message: '更新包下载失败',
+        detail: `${error && error.message ? error.message : error}\n\n可以稍后重试，或到 GitHub Releases 手动下载安装包。`,
+      });
     }
   } catch (error) {
     if (manual) {

@@ -1,6 +1,6 @@
 {
   "name": "one-company-web",
-  "version": "0.40.1",
+  "version": "0.40.2",
   "private": true,
   "type": "module",
   "description": "一人公司 · 独立 Web 客户端",
