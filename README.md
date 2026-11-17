@@ -910,3 +910,27 @@ curl -X POST http://127.0.0.1:4399/api/reset
 - 专家导入只读取本地 WorkBuddy 专家包的 manifest、agent markdown 和标签，不执行专家包内的脚本；专家进入上下文的是简介 + 900 字摘要，完整内容保存在 `data/experts/`
 - 记忆进入上下文的是 120 字摘要，不是全文；记忆检索仍是本地混合检索，不是 embedding
 - 岗位模板招聘会自动匹配专家；如果要精确指定专家，在招聘弹窗里勾选或招聘后用“专家 → 绑定”调整
+
+## 自动更新与发布（GitHub Releases）
+
+- 仓库：<https://github.com/CAI13976645145/YIren-opc>（public）
+- 更新源：<https://github.com/CAI13976645145/YIren-opc/releases>
+- 打包配置：`desktop/package.json` → `build.publish`（provider = github），electron-builder 会在安装包 `resources/app-update.yml` 写入更新源
+
+发布流程：
+
+```bash
+# 1. 改版本号（package.json 与 desktop/package.json 保持一致）
+# 2. 打包
+cd desktop
+./node_modules/.bin/electron-builder --win nsis --publish never -c.directories.output=../dist-electron-vNN
+
+# 3. 上传 Release（需要 repo contents:write 的 PAT）
+GITHUB_TOKEN=ghp_xxx node ../scripts/publish-github-release.mjs ../dist-electron-vNN
+```
+
+客户端行为：启动 8 秒后静默检查更新；菜单「检查更新」可手动触发；发现新版本后弹窗确认，下载完成自动安装重启。
+更新清单为 Release 中的 `latest.yml`，安装包为 `一人公司-Setup-<version>.exe`，两者必须同时上传。
+
+> 0.40.0 及更早的安装包没有内置 `app-update.yml`，需要手动安装一次 0.40.1，之后才能走自动更新。
+> 仓库若改为 private，客户端下载 Release 需要带 token，自动更新会失效，建议保持 public。
