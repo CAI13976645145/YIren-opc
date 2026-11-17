@@ -934,3 +934,17 @@ GITHUB_TOKEN=ghp_xxx node ../scripts/publish-github-release.mjs ../dist-electron
 
 > 0.40.0 及更早的安装包没有内置 `app-update.yml`，需要手动安装一次 0.40.1，之后才能走自动更新。
 > 仓库若改为 private，客户端下载 Release 需要带 token，自动更新会失效，建议保持 public。
+
+### 国内网络加速
+
+GitHub 直连下载 Release 很慢（实测约 27KB/s，153MB 要一个多小时）。可以在客户端用户目录写 `update.json` 走镜像：
+
+```json
+{
+  "provider": "generic",
+  "url": "https://ghfast.top/https://github.com/CAI13976645145/YIren-opc/releases/latest/download/"
+}
+```
+
+Windows 路径：`%APPDATA%\one-company-desktop\update.json`（`update.json` 优先级高于安装包内的 `app-update.yml`）。
+镜像可用性会变，失效时删掉这个文件就回到官方源；`gh-proxy.com`、`ghproxy.net` 可作备选。
