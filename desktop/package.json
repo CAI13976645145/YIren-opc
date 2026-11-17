@@ -93,12 +93,6 @@
       "createStartMenuShortcut": true,
       "shortcutName": "一人公司",
       "deleteAppDataOnUninstall": false
-    },
-    "publish": [
-      {
-        "provider": "generic",
-        "url": "https://example.com/one-company/updates/"
-      }
-    ]
+    }
   }
 }
