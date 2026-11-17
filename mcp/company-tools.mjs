@@ -682,9 +682,25 @@ const tools = [
       properties: {
         scope: { type: 'string', enum: ['公司', '团队', '项目', '员工'], description: '按层级过滤' },
         category: { type: 'string', description: '按分类过滤，例如 服务器/设备/服务/流程/项目参数' },
+        layer: { type: 'string', enum: ['rule', 'note', 'log'], description: '按记忆层过滤：rule 规则 / note 笔记 / log 日志' },
         query: { type: 'string', description: '按名称、摘要、正文关键词搜索' },
         limit: { type: 'number', description: '最多返回条数，默认 30' },
       },
+    },
+  },
+  {
+    name: 'search_memories',
+    description:
+      '按当前问题检索记忆，返回最相关的条目（BM25 + 项目/岗位加权）。回答前不确定公司是否记过某个参数、流程、决定时，先用它搜一遍，再决定是否 read_memory 取全文。',
+    inputSchema: {
+      type: 'object',
+      properties: {
+        query: { type: 'string', description: '要检索的问题或关键词，例如「18080 服务 端口」「3D 打印 参数」' },
+        scope: { type: 'string', enum: ['公司', '团队', '项目', '员工'], description: '限定层级，默认全部可见范围' },
+        layer: { type: 'string', enum: ['rule', 'note', 'log'], description: '限定记忆层' },
+        limit: { type: 'number', description: '返回条数，默认 8，最多 30' },
+      },
+      required: ['query'],
     },
   },
   {
@@ -701,7 +717,7 @@ const tools = [
   {
     name: 'save_memory',
     description:
-      '新建或更新公司知识/记忆（仅秘书、人事行政可用）。设备型号与参数、服务器地址与账号说明、服务端口与启动方式、业务流程、项目参数都写这里。scope 选「公司」或「项目」，内容要写清型号、地址、端口、参数、步骤和注意事项，员工下一轮会自动读到全文。',
+      '新建或更新公司知识/记忆（仅秘书、人事行政可用）。设备型号与参数、服务器地址与账号说明、服务端口与启动方式、业务流程、项目参数都写这里。scope 选「公司」或「项目」，内容要写清型号、地址、端口、参数、步骤和注意事项。写入后进入记忆索引并按问题召回，员工需要全文时用 read_memory。',
     inputSchema: {
       type: 'object',
       properties: {
@@ -709,6 +725,7 @@ const tools = [
         name: { type: 'string', description: '记忆名称，例如「ComfyUI 服务器」「3D 打印设备参数」「项目 X 流程与参数」' },
         scope: { type: 'string', enum: ['公司', '团队', '项目', '员工'], description: '默认公司' },
         category: { type: 'string', enum: ['公司制度', '服务器', '设备', '服务', '流程', '项目参数', '客户', '其他'] },
+        layer: { type: 'string', enum: ['rule', 'note', 'log'], description: '记忆层：rule 长期规则 / note 项目笔记 / log 日志（90 天过期）；默认按名称自动判断' },
         content: { type: 'string', description: 'Markdown 全文：型号、地址、端口、参数、步骤、注意事项' },
         projectId: { type: 'string', description: 'scope=项目 时填项目 ID' },
         employeeId: { type: 'string', description: 'scope=员工 时填员工 ID' },

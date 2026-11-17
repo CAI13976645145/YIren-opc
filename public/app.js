@@ -2288,18 +2288,18 @@ function startGatewayLoginPoll() {
 }
 
 function renderMemoriesPage() {
-  const memories = state.data.memories || [];
+  const memories = (state.data.memories || []).filter((item) => item.status !== 'archived');
   return `
     <div class="page">
       <div class="section-head">
-        <h2>公司知识库 <span class="hint">设备 / 服务器 / 服务 / 流程 / 项目参数；员工执行时先读摘要（L0/L1），需要细节再用 read_memory 取全文（L2）</span></h2>
+        <h2>公司知识库 <span class="hint">设备 / 服务器 / 服务 / 流程 / 项目参数；员工每轮只带一行索引和相关的 3-4 条正文，需要细节再用 read_memory 取全文</span></h2>
         <button class="link-btn" type="button" data-action="new-memory">新建知识</button>
       </div>
       <div class="asset-metrics">
         <div class="metric-card"><div class="metric-label">知识总数</div><div class="metric-value">${memories.length}</div><div class="metric-sub">Markdown 落盘</div></div>
         <div class="metric-card"><div class="metric-label">服务器 / 设备</div><div class="metric-value">${memories.filter((item) => ['服务器', '设备', '服务'].includes(item.category)).length}</div><div class="metric-sub">地址、端口、参数</div></div>
         <div class="metric-card"><div class="metric-label">流程 / 项目参数</div><div class="metric-value">${memories.filter((item) => ['流程', '项目参数'].includes(item.category)).length}</div><div class="metric-sub">工序与验收标准</div></div>
-        <div class="metric-card"><div class="metric-label">置顶</div><div class="metric-value">${memories.filter((item) => item.pinned).length}</div><div class="metric-sub">每轮都注入</div></div>
+        <div class="metric-card"><div class="metric-label">置顶</div><div class="metric-value">${memories.filter((item) => item.pinned).length}</div><div class="metric-sub">索引与召回优先</div></div>
       </div>
       <div class="memory-list">
         ${memories.map(renderMemoryRow).join('') || '<div class="empty">还没有记忆。新建后员工会在下一轮对话里引用。</div>'}
@@ -2308,6 +2308,7 @@ function renderMemoriesPage() {
 }
 
 function renderMemoryRow(item) {
+  const layerLabel = { rule: '规则', note: '笔记', log: '日志' }[item.layer] || '笔记';
   return `
     <button class="memory-row" type="button" data-action="preview-memory" data-id="${item.id}">
       <span class="memory-icon">MD</span>
@@ -2315,6 +2316,7 @@ function renderMemoryRow(item) {
         <div class="memory-name">${escapeHtml(item.name)}${item.pinned ? ' <span class="pill pill-ok">置顶</span>' : ''}</div>
         <div class="memory-path">${escapeHtml(item.path)}${item.summary ? ` · ${escapeHtml(item.summary)}` : ''}</div>
       </div>
+      <span class="tag muted">${layerLabel}</span>
       <span class="tag muted">${escapeHtml(item.category || '其他')}</span>
       <span class="tag muted">${escapeHtml(item.scope)}</span>
       <span class="tag muted">v${Number(item.version || 1)}</span>
