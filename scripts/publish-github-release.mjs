@@ -40,10 +40,23 @@ function resolveDistDir() {
 
 const distDir = resolveDistDir();
 const exeName = `一人公司-Setup-${version}.exe`;
-const assets = [exeName, `${exeName}.blockmap`, 'latest.yml'].map((name) => path.join(distDir, name));
-for (const file of assets) {
+const localFiles = [exeName, `${exeName}.blockmap`, 'latest.yml'].map((name) => path.join(distDir, name));
+for (const file of localFiles) {
   if (!fs.existsSync(file)) throw new Error(`缺少构建产物：${file}`);
 }
+
+// latest.yml 里的文件名是 electron-builder 生成的 ASCII 安全名（中文 artifactName 会被转写），
+// Release 资产必须按这个名字上传，否则客户端更新会 404。
+const latestYml = fs.readFileSync(path.join(distDir, 'latest.yml'), 'utf8');
+const declared = latestYml.match(/^\s*-\s*url:\s*(.+)$/m) || latestYml.match(/^path:\s*(.+)$/m);
+if (!declared) throw new Error('latest.yml 里找不到安装包文件名');
+const remoteExe = declared[1].trim();
+
+const assets = [
+  { file: localFiles[0], name: remoteExe },
+  { file: localFiles[1], name: `${remoteExe}.blockmap` },
+  { file: localFiles[2], name: 'latest.yml' },
+];
 
 async function api(url, options = {}) {
   const res = await fetch(url.startsWith('http') ? url : `https://api.github.com${url}`, {
@@ -95,9 +108,9 @@ async function ensureRelease() {
   });
 }
 
-async function uploadAsset(release, file) {
-  const name = path.basename(file);
-  const old = (release.assets || []).find((asset) => asset.name === name);
+async function uploadAsset(release, asset) {
+  const { file, name } = asset;
+  const old = (release.assets || []).find((item) => item.name === name);
   if (old) {
     await api(`/repos/${OWNER}/${REPO}/releases/assets/${old.id}`, { method: 'DELETE' });
     console.log(`覆盖旧资产：${name}`);
@@ -114,5 +127,5 @@ async function uploadAsset(release, file) {
 }
 
 const release = await ensureRelease();
-for (const file of assets) await uploadAsset(release, file);
+for (const asset of assets) await uploadAsset(release, asset);
 console.log(`\n完成：https://github.com/${OWNER}/${REPO}/releases/tag/${tag}`);
