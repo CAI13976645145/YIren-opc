@@ -30,6 +30,7 @@ import {
   rankMemories,
 } from './lib/memory-engine.mjs';
 import { MEMORY_REVIEW_SYSTEM, buildMemoryReviewPrompt, parseMemoryReview } from './lib/memory-review.mjs';
+import { isTaskStalled } from './lib/task-stall.mjs';
 import {
   BUILTIN_TEMPLATES,
   buildOrg,
@@ -2252,27 +2253,14 @@ function buildCatalogContext(current, employee) {
   const isHr = ['employee.admin', 'skill.assign', 'tool.create', 'tool.assign', 'permission.request'].some((code) => tools.has(code));
   if (!isHr) return '';
   const roles = [...BUILTIN_TEMPLATES, ...(current.customTemplates || [])].filter((item) => item.type === 'role');
-  const toolNames = (current.toolCatalog || [])
-    .filter((item) => item.enabled !== false && item.kind !== 'planned')
-    .map((item) => `${item.code}（${item.name}）`)
-    .slice(0, 30);
-  const skillNames = (current.skillCatalog || [])
-    .filter((item) => item.enabled !== false)
-    .map((item) => item.name)
-    .slice(0, 50);
-  const expertNames = (current.experts || [])
-    .filter((item) => item.enabled !== false)
-    .map((item) => `${item.name}（${item.profession || item.title}）`)
-    .slice(0, 40);
+  const toolNames = (current.toolCatalog || []).filter((item) => item.enabled !== false && item.kind !== 'planned');
+  const skillNames = (current.skillCatalog || []).filter((item) => item.enabled !== false);
+  const expertNames = (current.experts || []).filter((item) => item.enabled !== false);
   return [
     '【招聘目录】',
-    `岗位模板：${roles.map((item) => `${item.name}（${item.id}）`).join('、') || '无'}`,
-    `可分配工具：${toolNames.join('、') || '无'}`,
-    `可分配技能：${skillNames.join('、') || '无'}`,
-    `可绑定专家：${expertNames.join('、') || '无'}`,
-    /人事|HR|行政/i.test(String(employee.role || ''))
-      ? '招聘时先调用 mcp__company__list_catalog 读取完整目录，再用 mcp__company__search_market 搜索 WorkBuddy 专家/技能市场；工具、技能、专家都要从目录或市场结果中选择，不要凭空编造。需要自动配齐时给 hire_employee 传 marketAuto=true，系统会按岗位搜索并在最热前 10 名专家/技能中各随机选 1 个。\n【资产维护】机房用 save_server / delete_server / save_service / delete_service；设备用 save_device / delete_device；工具、技能、专家用 save_tool / save_skill / save_expert；知识库用 save_memory；资产盘点用 company_asset_overview。'
-      : '秘书可以维护工具目录（save_tool）、项目资料和知识库，项目体检后可用 repair_company（scope=project）生成维护任务；招聘由人事负责，需要增岗时把岗位需求交给人事（e-shenzhou）。',
+    `规模：岗位模板 ${roles.length} 个、可分配工具 ${toolNames.length} 个、技能 ${skillNames.length} 个、专家 ${expertNames.length} 个。`,
+    `岗位示例：${roles.slice(0, 6).map((item) => item.name).join('、') || '无'}${roles.length > 6 ? ' 等' : ''}`,
+    '招聘或分配前先调用 mcp__company__list_catalog 读取完整目录，再用 mcp__company__search_market 搜索 WorkBuddy 专家/技能市场；工具、技能、专家都要从目录或市场结果中选择，不要凭空编造。需要自动配齐时给 hire_employee 传 marketAuto=true，系统会按岗位搜索并在最热前 10 名专家/技能中各随机选 1 个。\n【资产维护】机房用 save_server / delete_server / save_service / delete_service；设备用 save_device / delete_device；工具、技能、专家用 save_tool / save_skill / save_expert；知识库用 save_memory；资产盘点用 company_asset_overview。',
   ].join('\n');
 }
 
@@ -2411,18 +2399,26 @@ function buildCompanyContext(current, context = {}) {
     return true;
   });
   const projectLines = visibleProjects
-    .map((item) => `${item.name}（${item.id}，${item.type}，${item.status}，${item.progress}%）`)
+    .slice(0, 10)
+    .map((item) => `${item.name}（${item.status}，${item.progress}%）`)
     .join('；');
-  const roster = current.employees
-    .filter((item) => !item.archived)
-    .map((item) => `${item.name}（${item.id}，${item.role}${item.dept ? `，${item.dept}` : ''}）`)
+  const activeEmployeeList = current.employees.filter((item) => !item.archived);
+  const roster = [
+    ...activeEmployeeList.slice(0, 12).map((item) => `${item.name}·${item.role}`),
+    activeEmployeeList.length > 12 ? `等 ${activeEmployeeList.length} 人` : '',
+  ]
+    .filter(Boolean)
     .join('、');
   const decisionLines = unresolved
+    .slice(0, 5)
     .map((item) => `${item.title}（建议：${item.recommendation}，截止：${item.deadline}）`)
     .join('；');
   const taskLines = activeTasks
+    .slice(0, 8)
     .map((item) => `${item.title}｜${employeeName(item.assignee)}｜${item.status}`)
     .join('；');
+  const moreTasks = activeTasks.length > 8 ? `；另有 ${activeTasks.length - 8} 个任务，用 list_tasks 查` : '';
+  const moreProjects = visibleProjects.length > 10 ? `；另有 ${visibleProjects.length - 10} 个项目` : '';
   const visibleMemories = (current.memories || []).filter((item) => {
     if (item.enabled === false || isMemoryExpired(item)) return false;
     if (item.scope === '项目' && (!project || item.projectId !== project.id)) return false;
@@ -2432,16 +2428,12 @@ function buildCompanyContext(current, context = {}) {
   const memoryLines = memoryCount ? `共 ${memoryCount} 条，一行索引 + 按需召回` : '无';
   const memoryBlock = buildMemoryContext(current, employee, project, query);
   const serverLines = (current.servers || [])
-    .map(
-      (item) =>
-        `${item.name}（${item.id}，${item.mode === 'ssh' ? `SSH ${item.sshUser || ''}@${item.host}` : '本机'}，${item.status || 'unknown'}，${(item.services || []).length} 个已登记服务）`,
-    )
+    .slice(0, 6)
+    .map((item) => `${item.name}（${item.status || 'unknown'}，${(item.services || []).length} 个服务）`)
     .join('；');
   const deviceLines = (current.devices || [])
-    .map(
-      (item) =>
-        `${item.name}（${item.id}，${item.category}，${item.model || '型号未填'}，${item.status}，${item.location || '位置未填'}）`,
-    )
+    .slice(0, 8)
+    .map((item) => `${item.name}（${item.category}，${item.status}）`)
     .join('；');
   const skillContext = buildSkillContext(current, employee, query);
   const expertContext = buildExpertContext(current, employee, project);
@@ -2453,7 +2445,7 @@ function buildCompanyContext(current, context = {}) {
     ? '请主动用 save_tool / assign_skills / assign_experts / save_memory 维护工具、技能、专家和知识库，服务器与设备用对应接口补齐；缺口较多时用 repair_company（scope=company）生成维护任务'
     : '请主动用 update_project / save_memory 补齐；缺口较多时用 repair_company（scope=project）生成维护任务';
   const auditLine = audit?.total
-    ? `【${auditScope === 'company' ? '公司体检 · 人事域' : auditScope === 'all' ? '公司体检 · 全公司' : '项目体检 · 秘书域'}】发现 ${audit.total} 个资料缺口：${audit.findings.slice(0, 10).map((item) => `${item.projectName || item.area}·${item.detail}`).join('；')}。${auditAction}；不能判断的用 ask_user 问老板。`
+    ? `【${auditScope === 'company' ? '公司体检 · 人事域' : auditScope === 'all' ? '公司体检 · 全公司' : '项目体检 · 秘书域'}】发现 ${audit.total} 个资料缺口：${audit.findings.slice(0, 5).map((item) => `${item.projectName || item.area}·${item.detail}`).join('；')}。${auditAction}；不能判断的用 ask_user 问老板。`
     : `【${auditScope === 'company' ? '公司体检 · 人事域' : '项目体检 · 秘书域'}】未发现明显资料缺口。`;
   const hiringLine = /人事|HR|行政/i.test(String(employee?.role || ''))
     ? '需要招人用 mcp__company__hire_employee（先 list_catalog 取岗位模板，可先 search_market 搜 WorkBuddy 专家/技能；传 marketAuto=true 会从最热前 10 名专家/技能中各随机选 1 个；模型可传 model，留空按岗位自动匹配）'
@@ -2463,9 +2455,9 @@ function buildCompanyContext(current, context = {}) {
     '【当前公司数据】',
     `公司：${current.company.name}`,
     `员工（全公司 ${current.employees.filter((item) => !item.archived).length} 人）：${roster || '无'}`,
-    `项目（${visibleProjects.length} 个${hiddenProjects ? `，另有 ${hiddenProjects} 个你未参与` : ''}）：${projectLines || '无'}`,
+    `项目（${visibleProjects.length} 个${hiddenProjects ? `，另有 ${hiddenProjects} 个你未参与` : ''}）：${projectLines || '无'}${moreProjects}`,
     `待决策：${decisionLines || '无'}`,
-    `进行中任务：${taskLines || '无'}`,
+    `进行中任务：${taskLines || '无'}${moreTasks}`,
     `服务器（${(current.servers || []).length} 台）：${serverLines || '无'}`,
     `设备（${(current.devices || []).length} 台）：${deviceLines || '无'}`,
     `公司记忆（按范围）：${memoryLines || '无'}`,
@@ -6571,6 +6563,8 @@ async function runTask(taskId, options = {}) {
 
   const startedAt = new Date().toISOString();
   task.status = '进行中';
+  task.stalled = false;
+  task.stalledAt = '';
   task.updatedAt = startedAt;
   task.lastRun = { status: 'running', startedAt, auto: Boolean(options.auto), employeeId: employee.id };
 
@@ -6766,6 +6760,9 @@ async function runTask(taskId, options = {}) {
         durationMs: Date.now() - new Date(startedAt).getTime(),
       }, result));
     }
+    task.stalled = false;
+    task.stalledAt = '';
+    task.stallRetries = 0;
     await saveStore();
     if (deliverable) scheduleSecretaryAutoAdvance(task);
     return { task, deliverable, decision };
@@ -6931,6 +6928,109 @@ async function autoRunTick() {
   return launched;
 }
 
+const TASK_STALL_MS = Math.max(60_000, Number(process.env.OC_TASK_STALL_MS) || 15 * 60 * 1000);
+const TASK_STALL_CHECK_MS = Math.max(10_000, Number(process.env.OC_TASK_STALL_CHECK_MS) || 60 * 1000);
+let taskStallBusy = false;
+
+function startTaskAfterAbort(taskId, options = {}, attempt = 0) {
+  runTask(taskId, options).catch((error) => {
+    if (attempt < 2) {
+      setTimeout(() => startTaskAfterAbort(taskId, options, attempt + 1), 5000).unref?.();
+      return;
+    }
+    console.warn('任务自动重启失败：', error instanceof Error ? error.message : String(error));
+  });
+}
+
+/**
+ * 任务停滞检测：进行中任务 15 分钟没有任何事件（思考/工具/输出/心跳都算）就判定卡住。
+ * 第一次自动重试；第二次转交秘书，避免一个员工卡死把整条任务链拖住。
+ */
+async function taskStallTick() {
+  if (taskStallBusy) return;
+  taskStallBusy = true;
+  try {
+    for (const task of store.tasks) {
+      if (!isTaskStalled(task, { now: Date.now(), stallMs: TASK_STALL_MS })) continue;
+      task.lastRun.stallHandledAt = new Date().toISOString();
+      task.stalled = true;
+      task.stalledAt = task.lastRun.stallHandledAt;
+      const retries = Number(task.stallRetries || 0);
+      const oldAssignee = task.assignee;
+      const employee = store.employees.find((item) => item.id === oldAssignee);
+      const run = activeTaskRuns.get(task.id);
+      if (retries < 1) {
+        task.stallRetries = 1;
+        task.lastRun.currentActivity = '无响应，自动重试中';
+        notify({
+          type: 'task',
+          level: 'warning',
+          title: `任务疑似卡住，自动重试：${task.title}`,
+          body: `${employee?.name || oldAssignee} 已 15 分钟无进展，系统将中断并重试一次。`,
+          view: 'tasks',
+          targetId: task.id,
+          source: 'task',
+        });
+        run?.controller.abort();
+        setTimeout(() => {
+          startTaskAfterAbort(task.id, { auto: true, stallRetry: true });
+        }, 6000).unref?.();
+      } else {
+        if (oldAssignee === 'e-jiang') {
+          task.status = '阻塞';
+          task.stallRetries = 2;
+          task.lastRun.currentActivity = '秘书接手后仍无进展，需人工处理';
+          notify({
+            type: 'task',
+            level: 'error',
+            title: `任务仍无进展，需人工处理：${task.title}`,
+            body: '已转交秘书并重试，仍未产生进展；请检查模型/DSH 或手动重跑。',
+            view: 'tasks',
+            targetId: task.id,
+            source: 'task',
+          });
+          run?.controller.abort();
+          await saveStore();
+          continue;
+        }
+        task.stallRetries = 2;
+        task.assignee = 'e-jiang';
+        task.handoff = {
+          from: oldAssignee,
+          to: 'e-jiang',
+          at: new Date().toISOString(),
+          reason: '连续两次 15 分钟无进展，自动转交秘书',
+        };
+        task.lastRun.currentActivity = '连续无响应，转交秘书';
+        appendChatMessage(`employee:${oldAssignee}`, {
+          from: 'system',
+          text: `系统：任务「${task.title}」连续无响应，已转交江叙接手。`,
+        });
+        appendChatMessage('employee:e-jiang', {
+          from: 'system',
+          text: `系统：${employee?.name || oldAssignee} 的任务「${task.title}」连续卡住，已转交给你。`,
+        });
+        notify({
+          type: 'task',
+          level: 'error',
+          title: `任务连续卡住，已转交秘书：${task.title}`,
+          body: `${employee?.name || oldAssignee} 两次无进展，已改派江叙；任务上下文和断点都保留。`,
+          view: 'tasks',
+          targetId: task.id,
+          source: 'task',
+        });
+        run?.controller.abort();
+        setTimeout(() => {
+          startTaskAfterAbort(task.id, { auto: true, stallHandoff: true });
+        }, 6000).unref?.();
+      }
+      await saveStore();
+    }
+  } finally {
+    taskStallBusy = false;
+  }
+}
+
 function startTaskScheduler() {
   const timer = setInterval(() => {
     autoRunTick().catch((error) => console.warn('自动任务调度异常：', error));
@@ -6939,6 +7039,13 @@ function startTaskScheduler() {
   setTimeout(() => {
     autoRunTick().catch((error) => console.warn('自动任务调度异常：', error));
   }, 1200).unref?.();
+  const stallTimer = setInterval(() => {
+    taskStallTick().catch((error) => console.warn('任务停滞检测异常：', error));
+  }, TASK_STALL_CHECK_MS);
+  stallTimer.unref?.();
+  setTimeout(() => {
+    taskStallTick().catch((error) => console.warn('任务停滞检测异常：', error));
+  }, 20 * 1000).unref?.();
 }
 
 async function recoverInterruptedTasks() {
@@ -7236,7 +7343,7 @@ function backupStamp() {
 }
 
 /** 生成一份本地快照：store/settings + memory/uploads 等目录，放在 data/backups/<时间>/。 */
-async function createDataSnapshot() {
+async function createDataSnapshot(kind = 'manual') {
   await mkdir(BACKUP_DIR, { recursive: true });
   const id = `backup-${backupStamp()}`;
   const target = join(BACKUP_DIR, id);
@@ -7258,6 +7365,7 @@ async function createDataSnapshot() {
   const manifest = {
     schema: 'one-company-backup',
     version: 1,
+    kind: kind === 'auto' ? 'auto' : 'manual',
     id,
     createdAt: new Date().toISOString(),
     appVersion: String(await readFile(new URL('./package.json', import.meta.url), 'utf8').then((raw) => JSON.parse(raw).version).catch(() => '')),
@@ -7272,6 +7380,49 @@ async function createDataSnapshot() {
   };
   await writeFile(join(target, 'manifest.json'), `${JSON.stringify(manifest, null, 2)}\n`, 'utf8');
   return { path: target, manifest };
+}
+
+async function listBackupDirs() {
+  const backups = [];
+  try {
+    const entries = await readdir(BACKUP_DIR, { withFileTypes: true });
+    for (const entry of entries) {
+      if (!entry.isDirectory() || !entry.name.startsWith('backup-')) continue;
+      const dir = join(BACKUP_DIR, entry.name);
+      let manifest = null;
+      try {
+        manifest = JSON.parse(await readFile(join(dir, 'manifest.json'), 'utf8'));
+      } catch {
+        manifest = { id: entry.name, createdAt: '', kind: 'manual' };
+      }
+      backups.push({ ...manifest, path: dir });
+    }
+  } catch {
+    /* 还没有备份目录 */
+  }
+  return backups.sort((a, b) => String(b.createdAt || '').localeCompare(String(a.createdAt || '')));
+}
+
+/** 每天首次启动/每 6 小时检查一次；只保留最近 7 份自动备份，手动备份不动。 */
+async function ensureDailyBackup({ force = false } = {}) {
+  try {
+    const backups = await listBackupDirs();
+    const latest = backups[0];
+    if (!force && latest?.createdAt) {
+      const age = Date.now() - (Date.parse(latest.createdAt) || 0);
+      if (age >= 0 && age < 20 * 3600 * 1000) return null;
+    }
+    const result = await createDataSnapshot('auto');
+    const autos = (await listBackupDirs()).filter((item) => item.kind === 'auto');
+    for (const stale of autos.slice(7)) {
+      await rm(stale.path, { recursive: true, force: true }).catch(() => {});
+    }
+    console.log(`自动备份完成：${result.manifest.id}`);
+    return result;
+  } catch (error) {
+    console.warn('自动备份失败：', error instanceof Error ? error.message : String(error));
+    return null;
+  }
 }
 
 /* ---------------- IM 员工接入（dsh-im 插件桥） ---------------- */
@@ -8033,6 +8184,50 @@ async function handleApi(req, res, pathname, url) {
       comment: approval.comment || '',
       approval,
     });
+  }
+
+  if (pathname === '/api/backup/restore-snapshot' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const id = String(body.id || '').trim();
+    if (!/^backup-[A-Za-z0-9-]+$/.test(id)) {
+      return json(res, 400, { ok: false, code: 'INVALID', error: '备份 ID 不合法' });
+    }
+    const dir = join(BACKUP_DIR, id);
+    let backupStore;
+    let backupSettings = null;
+    try {
+      backupStore = JSON.parse(await readFile(join(dir, 'store.json'), 'utf8'));
+      backupSettings = JSON.parse(await readFile(join(dir, 'settings.json'), 'utf8'));
+    } catch (error) {
+      return json(res, 404, { ok: false, code: 'NOT_FOUND', error: `备份不完整或不存在：${error.message}` });
+    }
+    if (!backupStore || !Array.isArray(backupStore.employees) || !Array.isArray(backupStore.projects)) {
+      return json(res, 400, { ok: false, code: 'INVALID_BACKUP', error: '备份里的 store.json 结构不正确' });
+    }
+    await createDataSnapshot('manual').catch(() => {});
+    const previous = store;
+    try {
+      store = normalizeState(backupStore);
+      ensureTaskMandates();
+      await saveStore();
+      if (backupSettings && typeof backupSettings === 'object') {
+        settings = { ...settings, ...backupSettings };
+        await saveSettings();
+        await generateDshPatch();
+      }
+      audit('backup.restore', {
+        targetType: 'backup',
+        targetId: id,
+        summary: `从快照「${id}」恢复数据`,
+        detail: `员工 ${store.employees.length} 人 / 项目 ${store.projects.length} 个 / 记忆 ${(store.memories || []).length} 条`,
+        level: 'L3',
+      });
+      await saveStore();
+      return json(res, 200, { ok: true, state: store, restoredAt: new Date().toISOString() });
+    } catch (error) {
+      store = previous;
+      return json(res, 500, { ok: false, code: 'RESTORE_FAILED', error: error instanceof Error ? error.message : String(error) });
+    }
   }
 
   if (pathname === '/api/backup/info' && req.method === 'GET') {
@@ -9990,6 +10185,67 @@ function insertSystemMessage(chatKey, textValue) {
     });
   }
 
+  if (pathname === '/api/memories/activity' && req.method === 'GET') {
+    const limit = Math.max(1, Math.min(100, Number(url.searchParams.get('limit')) || 30));
+    const activity = (store.memories || [])
+      .map((memory) => {
+        const latest = Array.isArray(memory.versions) && memory.versions.length ? memory.versions[0] : null;
+        return {
+          memoryId: memory.id,
+          name: memory.name,
+          scope: memory.scope,
+          layer: inferMemoryLayer(memory),
+          version: Number(memory.version) || 1,
+          action: Number(memory.version) > 1 ? '更新' : '新建',
+          source: memory.source || 'manual',
+          editor: latest?.editor || memory.editor || '',
+          note: latest?.note || '',
+          status: memory.status || 'active',
+          updatedAt: memory.updatedAt || memory.createdAt || '',
+          canUndo: Number(memory.version) > 1,
+        };
+      })
+      .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+      .slice(0, limit);
+    return json(res, 200, { ok: true, activity });
+  }
+
+  const memoryUndoMatch = pathname.match(/^\/api\/memories\/([^/]+)\/undo$/);
+  if (memoryUndoMatch && req.method === 'POST') {
+    const memory = store.memories.find((item) => item.id === decodeURIComponent(memoryUndoMatch[1]));
+    if (!memory) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '记忆不存在' });
+    const versions = Array.isArray(memory.versions) ? memory.versions : [];
+    const previous = versions.find((item) => Number(item.version) < Number(memory.version));
+    if (!previous) return json(res, 400, { ok: false, code: 'NO_PREVIOUS', error: '这条记忆没有更早的版本可撤销' });
+    const updated = await updateMemory(memory, {
+      content: previous.content,
+      note: `撤销到 v${previous.version}`,
+      editor: '老板',
+    });
+    return json(res, 200, { ok: true, state: store, memory: updated, restoredVersion: previous.version });
+  }
+
+  const memoryRestoreMatch = pathname.match(/^\/api\/memories\/([^/]+)\/restore$/);
+  if (memoryRestoreMatch && req.method === 'POST') {
+    const memory = store.memories.find((item) => item.id === decodeURIComponent(memoryRestoreMatch[1]));
+    if (!memory) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '记忆不存在' });
+    memory.status = 'active';
+    memory.archiveReason = '';
+    memory.updatedAt = new Date().toISOString();
+    memory.expiresAt = inferMemoryLayer(memory) === 'log'
+      ? new Date(Date.now() + 30 * 24 * 3600 * 1000).toISOString()
+      : '';
+    await writeMemoryFile(memory);
+    audit('memory.restore', {
+      targetType: 'memory',
+      targetId: memory.id,
+      summary: `从归档恢复记忆「${memory.name}」`,
+      detail: `层级：${memory.scope}；层：${memory.layer}`,
+    });
+    await saveStore();
+    return json(res, 200, { ok: true, state: store, memory });
+  }
+
   if (pathname === '/api/memories/organize' && req.method === 'POST') {
     const stats = await organizeMemories();
     audit('memory.organize', {
@@ -11902,6 +12158,39 @@ function insertSystemMessage(chatKey, textValue) {
         error: error instanceof Error ? error.message : String(error),
       });
     }
+  }
+
+  if (pathname === '/api/context/breakdown' && req.method === 'GET') {
+    const employee = store.employees.find((item) => item.id === url.searchParams.get('employeeId')) || null;
+    const project = store.projects.find((item) => item.id === url.searchParams.get('projectId')) || null;
+    const query = String(url.searchParams.get('q') || '').trim();
+    const context = buildCompanyContext(store, { employee, project, query });
+    const markers = [
+      ['company', '公司数据', '【当前公司数据】'],
+      ['memoryIndex', '记忆索引', '【记忆索引】'],
+      ['memoryRecall', '记忆召回', '【可能相关的记忆】'],
+      ['skills', '岗位技能', '【岗位技能'],
+      ['experts', '专家支持', '【专家支持】'],
+      ['catalog', '招聘目录', '【招聘目录】'],
+    ]
+      .map(([key, label, marker]) => ({ key, label, at: context.indexOf(marker) }))
+      .filter((item) => item.at >= 0)
+      .sort((a, b) => a.at - b.at);
+    const sections = markers.map((item, index) => ({
+      key: item.key,
+      label: item.label,
+      chars: (index + 1 < markers.length ? markers[index + 1].at : context.length) - item.at,
+    }));
+    if (markers.length && markers[0].at > 0) sections.unshift({ key: 'other', label: '其他', chars: markers[0].at });
+    const accounted = sections.reduce((sum, item) => sum + item.chars, 0);
+    if (context.length > accounted) sections.push({ key: 'tail', label: '尾部/规则', chars: context.length - accounted });
+    return json(res, 200, {
+      ok: true,
+      total: context.length,
+      employee: employee ? { id: employee.id, name: employee.name } : null,
+      project: project ? { id: project.id, name: project.name } : null,
+      sections,
+    });
   }
 
   if (pathname === '/api/agent-tools/context-preview' && req.method === 'GET') {
@@ -16619,6 +16908,8 @@ if (Number(store.memorySchemaVersion || 0) < 2) {
     console.log(`记忆结构迁移完成：归档 ${stats.archived} 条，重建 ${stats.rebuilt} 条`);
   }
 }
+void ensureDailyBackup();
+setInterval(() => void ensureDailyBackup(), 6 * 3600 * 1000).unref?.();
 await syncAllServerMemories();
 await mkdir(UPLOAD_DIR, { recursive: true });
 await mkdir(REPORT_DIR, { recursive: true });

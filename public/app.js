@@ -20,6 +20,11 @@ const state = {
   deliverableFilter: 'active',
   deliverableVersions: [],
   backupInfo: null,
+  memoryArchiveOpen: false,
+  memoryArchiveList: null,
+  contextBreakdown: null,
+  contextEmployeeId: '',
+  contextProjectId: '',
   resolved: new Set(),
   taskDone: new Set(),
   dockCollapsed: false,
@@ -1828,6 +1833,8 @@ function renderTaskRow(task) {
           ${taskDeliverables.length ? `<span class="tag muted">交付 ${taskDeliverables.length}${pendingDeliverables.length ? ` · 待验 ${pendingDeliverables.length}` : ''}</span>` : ''}
           ${task.worktree?.status ? `<span class="tag ${task.worktree.status === '待合并' ? 'warn' : task.worktree.status === 'error' ? 'danger' : 'muted'}">隔离区 ${escapeHtml(task.worktree.status)}</span>` : ''}
           ${running && lastRun.currentActivity ? `<span class="tag info">${escapeHtml(lastRun.currentActivity)}</span>` : ''}
+          ${task.stalled ? `<span class="tag danger">疑似卡住</span>` : ''}
+          ${running && lastRun.lastEventAt ? `<span class="tag muted">最后活动 ${escapeHtml(formatDateTime(lastRun.lastEventAt))}</span>` : ''}
         </div>
         ${task.acceptance ? `<div class="task-acceptance">验收：${escapeHtml(task.acceptance)}</div>` : ''}
         ${
@@ -2287,8 +2294,65 @@ function startGatewayLoginPoll() {
   }, 3000);
 }
 
+function memorySourceLabel(item) {
+  const source = String(item?.source || 'manual');
+  if (source === 'memory-review') return '自动评审';
+  if (source === 'deliverable-approval' || source === 'ledger-migration') return '交付台账';
+  if (source === 'system') return '系统同步';
+  if (source === 'manual') return '手动';
+  return source;
+}
+
+function renderMemoryActivity(memories) {
+  const recent = [...memories]
+    .sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')))
+    .slice(0, 8);
+  if (!recent.length) return '<div class="empty">还没有记忆动态。</div>';
+  return recent
+    .map(
+      (item) => `
+      <div class="memory-row memory-activity-row">
+        <span class="tag muted">${escapeHtml(memorySourceLabel(item))}</span>
+        <div class="memory-main">
+          <div class="memory-name">${escapeHtml(item.name)} · v${Number(item.version || 1)}</div>
+          <div class="memory-path">${escapeHtml(item.layer === 'rule' ? '规则' : item.layer === 'log' ? '日志' : '笔记')} · ${escapeHtml(item.scope || '公司')} · ${escapeHtml(formatDateTime(item.updatedAt))}</div>
+        </div>
+        ${Number(item.version || 1) > 1 ? `<button class="btn ghost small" type="button" data-action="undo-memory" data-id="${escapeHtml(item.id)}">撤销</button>` : ''}
+      </div>`,
+    )
+    .join('');
+}
+
+function renderMemoryArchive() {
+  const list = state.memoryArchiveList || [];
+  if (!state.memoryArchiveOpen) return '';
+  return `
+    <div class="memory-archive">
+      <div class="section-head">
+        <h3>归档箱 <span class="hint">占位、过期、重复合并的记忆；恢复后重新进入索引</span></h3>
+        <button class="link-btn" type="button" data-action="toggle-memory-archive">收起</button>
+      </div>
+      <div class="memory-list">
+        ${list
+          .map(
+            (item) => `
+          <div class="memory-row memory-activity-row">
+            <span class="tag muted">${escapeHtml(item.layer === 'rule' ? '规则' : item.layer === 'log' ? '日志' : '笔记')}</span>
+            <div class="memory-main">
+              <div class="memory-name">${escapeHtml(item.name)}</div>
+              <div class="memory-path">${escapeHtml(item.archiveReason || '已归档')} · ${escapeHtml(formatDateTime(item.updatedAt))}</div>
+            </div>
+            <button class="btn ghost small" type="button" data-action="restore-memory" data-id="${escapeHtml(item.id)}">恢复</button>
+          </div>`,
+          )
+          .join('') || '<div class="empty">归档箱是空的。</div>'}
+      </div>
+    </div>`;
+}
+
 function renderMemoriesPage() {
   const memories = (state.data.memories || []).filter((item) => item.status !== 'archived');
+  const archivedCount = Number(state.data.memoriesArchived || 0);
   return `
     <div class="page">
       <div class="section-head">
@@ -2299,8 +2363,14 @@ function renderMemoriesPage() {
         <div class="metric-card"><div class="metric-label">知识总数</div><div class="metric-value">${memories.length}</div><div class="metric-sub">Markdown 落盘</div></div>
         <div class="metric-card"><div class="metric-label">服务器 / 设备</div><div class="metric-value">${memories.filter((item) => ['服务器', '设备', '服务'].includes(item.category)).length}</div><div class="metric-sub">地址、端口、参数</div></div>
         <div class="metric-card"><div class="metric-label">流程 / 项目参数</div><div class="metric-value">${memories.filter((item) => ['流程', '项目参数'].includes(item.category)).length}</div><div class="metric-sub">工序与验收标准</div></div>
-        <div class="metric-card"><div class="metric-label">置顶</div><div class="metric-value">${memories.filter((item) => item.pinned).length}</div><div class="metric-sub">索引与召回优先</div></div>
+        <div class="metric-card"><div class="metric-label">归档</div><div class="metric-value">${archivedCount}</div><div class="metric-sub"><button class="link-btn" type="button" data-action="toggle-memory-archive">${state.memoryArchiveOpen ? '收起归档箱' : '打开归档箱'}</button></div></div>
       </div>
+      ${renderMemoryArchive()}
+      <div class="section-head">
+        <h3>最近动态 <span class="hint">自动评审、交付台账和手动修改都会留版本，可撤销</span></h3>
+      </div>
+      <div class="memory-list memory-activity">${renderMemoryActivity(memories)}</div>
+      <div class="section-head"><h3>全部记忆</h3></div>
       <div class="memory-list">
         ${memories.map(renderMemoryRow).join('') || '<div class="empty">还没有记忆。新建后员工会在下一轮对话里引用。</div>'}
       </div>
@@ -8729,6 +8799,22 @@ function renderSettingsBackupSection() {
         <input type="file" id="backup-restore-file" accept="application/json,.json" hidden />
       </div>
       <div class="settings-hint">最近快照：${latest ? `<strong>${escapeHtml(latest.id || latest.createdAt)}</strong> · ${escapeHtml(formatDateTime(latest.createdAt))}${latest.path ? ` · <code>${escapeHtml(latest.path)}</code>` : ''}` : '还没有快照，建议先点「立即快照」。'}</div>
+      <div class="backup-list">
+        ${(info.backups || [])
+          .slice(0, 8)
+          .map(
+            (item) => `
+          <div class="backup-row">
+            <span class="tag muted">${item.kind === 'auto' ? '自动' : '手动'}</span>
+            <div class="backup-main">
+              <div class="backup-name">${escapeHtml(item.id || item.createdAt)}</div>
+              <div class="backup-meta">${escapeHtml(formatDateTime(item.createdAt))} · 员工 ${Number(item.counts?.employees || 0)} · 项目 ${Number(item.counts?.projects || 0)} · 记忆 ${Number(item.counts?.memories || 0)}</div>
+            </div>
+            <button class="btn ghost small" type="button" data-action="restore-snapshot" data-id="${escapeHtml(item.id || '')}">恢复</button>
+          </div>`,
+          )
+          .join('') || '<div class="empty">还没有快照。</div>'}
+      </div>
       <div class="settings-hint">恢复会覆盖当前 store/settings，执行前会自动再做一份快照。</div>
     </div>`;
 }
@@ -9142,6 +9228,47 @@ function openImModal(employeeId) {
   if (!state.imState) void loadImState(true);
 }
 
+function renderSettingsContextSection() {
+  const employees = (state.data.employees || []).filter((item) => !item.archived);
+  const projects = state.data.projects || [];
+  const employeeId = state.contextEmployeeId || employees[0]?.id || '';
+  const projectId = state.contextProjectId || projects[0]?.id || '';
+  const data = state.contextBreakdown;
+  return `
+    <div class="settings-section">
+      <h3>上下文体检</h3>
+      <div class="settings-hint">测量一名员工在指定项目下，每轮提示词各块的字符数。记忆索引、召回、技能、公司数据哪块最贵，一眼能看见。</div>
+      <div class="head-actions">
+        <select class="gateway-select" id="context-employee">
+          ${employees.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === employeeId ? 'selected' : ''}>${escapeHtml(item.name)} · ${escapeHtml(item.role || '')}</option>`).join('')}
+        </select>
+        <select class="gateway-select" id="context-project">
+          <option value="">公司视角</option>
+          ${projects.map((item) => `<option value="${escapeHtml(item.id)}" ${item.id === projectId ? 'selected' : ''}>${escapeHtml(item.name)}</option>`).join('')}
+        </select>
+        <button class="btn primary small" type="button" data-action="context-breakdown">测量</button>
+      </div>
+      ${
+        data
+          ? `<div class="context-breakdown">
+              <div class="context-total">总计 <strong>${Number(data.total || 0).toLocaleString()}</strong> 字</div>
+              ${(data.sections || [])
+                .map((item) => {
+                  const percent = data.total ? Math.max(1, Math.round((item.chars / data.total) * 100)) : 0;
+                  return `
+                    <div class="context-row">
+                      <span class="context-label">${escapeHtml(item.label)}</span>
+                      <div class="context-bar"><span style="width:${percent}%"></span></div>
+                      <span class="context-value">${Number(item.chars || 0).toLocaleString()}</span>
+                    </div>`;
+                })
+                .join('')}
+            </div>`
+          : '<div class="empty">还没有测量。选员工和项目后点「测量」。</div>'
+      }
+    </div>`;
+}
+
 function renderSettingsLayout() {
   const payload = state.settings || {};
   const s = payload.settings || {};
@@ -9156,6 +9283,7 @@ function renderSettingsLayout() {
     { id: 'im', label: 'IM 接入', hint: '微信 / 飞书 / 企微 / QQ 机器人' },
     { id: 'policy', label: '审批策略', hint: 'L0-L4 与同类授权' },
     { id: 'backup', label: '数据备份', hint: '位置 / 快照 / 导出 / 恢复' },
+    { id: 'context', label: '上下文体检', hint: '每轮提示词构成与字数' },
     { id: 'usage', label: 'Token 用量', hint: '调用与成本' },
     { id: 'runtime', label: '运行状态', hint: '控制面与补丁' },
   ];
@@ -9164,6 +9292,8 @@ function renderSettingsLayout() {
       ? renderSettingsPolicySection(policy)
       : tab === 'backup'
         ? renderSettingsBackupSection()
+        : tab === 'context'
+          ? renderSettingsContextSection()
         : tab === 'usage'
         ? renderSettingsUsageSection(usage)
         : tab === 'runtime'
@@ -10535,8 +10665,28 @@ document.addEventListener('click', (event) => {
     }
   } else if (action === 'refresh-backup-info') {
     void refreshBackupInfo();
+  } else if (action === 'context-breakdown') {
+    const employeeId = document.getElementById('context-employee')?.value || '';
+    const projectId = document.getElementById('context-project')?.value || '';
+    state.contextEmployeeId = employeeId;
+    state.contextProjectId = projectId;
+    api(`/api/context/breakdown?employeeId=${encodeURIComponent(employeeId)}&projectId=${encodeURIComponent(projectId)}`)
+      .then((payload) => {
+        state.contextBreakdown = payload;
+        renderSettingsPanel();
+      })
+      .catch((error) => showToast(`测量失败：${error.message}`));
   } else if (action === 'backup-now') {
     void createBackupSnapshot();
+  } else if (action === 'restore-snapshot') {
+    if (!confirm('恢复这个快照会覆盖当前员工、项目、任务、记忆和设置。执行前会再自动快照一次，确定继续？')) return;
+    api('/api/backup/restore-snapshot', { method: 'POST', body: JSON.stringify({ id }) })
+      .then((payload) => {
+        applyServerState(payload.state);
+        showToast('数据已从快照恢复，页面即将刷新');
+        setTimeout(() => location.reload(), 900);
+      })
+      .catch((error) => showToast(`恢复失败：${error.message}`));
   } else if (action === 'backup-export') {
     window.open('/api/backup/export', '_blank');
   } else if (action === 'backup-restore') {
@@ -11079,6 +11229,38 @@ document.addEventListener('click', (event) => {
     openModal('document-preview', id);
   } else if (action === 'preview-memory') {
     openMemoryPreview(id);
+  } else if (action === 'toggle-memory-archive') {
+    if (state.memoryArchiveOpen) {
+      state.memoryArchiveOpen = false;
+      render();
+    } else {
+      api('/api/memories?includeArchived=1')
+        .then((payload) => {
+          state.memoryArchiveList = (payload.memories || []).filter((item) => item.status === 'archived');
+          state.memoryArchiveOpen = true;
+          render();
+        })
+        .catch((error) => showToast(`归档箱加载失败：${error.message}`));
+    }
+  } else if (action === 'undo-memory') {
+    if (confirm('撤销到上一个版本？当前版本会保留在版本历史里。')) {
+      api(`/api/memories/${encodeURIComponent(id)}/undo`, { method: 'POST' })
+        .then((payload) => {
+          applyServerState(payload.state);
+          showToast(`已撤销到 v${payload.restoredVersion}`);
+          render();
+        })
+        .catch((error) => showToast(`撤销失败：${error.message}`));
+    }
+  } else if (action === 'restore-memory') {
+    api(`/api/memories/${encodeURIComponent(id)}/restore`, { method: 'POST' })
+      .then((payload) => {
+        applyServerState(payload.state);
+        state.memoryArchiveList = (state.memoryArchiveList || []).filter((item) => item.id !== id);
+        showToast('记忆已恢复');
+        render();
+      })
+      .catch((error) => showToast(`恢复失败：${error.message}`));
   } else if (action === 'run-task') {
     runTaskNow(id);
   } else if (action === 'toggle-autonomy') {
