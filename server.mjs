@@ -16,6 +16,7 @@ import {
   presetIdFor,
   PRESET_SCHEMA_VERSION,
 } from './lib/employee-preset.mjs';
+import { buildEmployeeRules } from './lib/employee-prompt.mjs';
 import {
   BUILTIN_TEMPLATES,
   buildOrg,
@@ -1947,11 +1948,6 @@ function buildCompanyContext(current, context = {}) {
     ? '需要招人用 mcp__company__hire_employee（先 list_catalog 取岗位模板，可先 search_market 搜 WorkBuddy 专家/技能；传 marketAuto=true 会从最热前 10 名专家/技能中各随机选 1 个；模型可传 model，留空按岗位自动匹配）'
     : '招人由人事负责，不要调用 hire_employee；需要增岗时整理岗位需求交给人事（e-shenzhou）；秘书可调用 update_employee 的 model 参数给现有员工换模型';
 
-  const ownerLine =
-    employee?.id === 'e-jiang'
-      ? '【工作方式】你是项目总负责人：老板给目标和边界后，你自主澄清需求、拆解里程碑、派任务、跟踪、验收、打回返工、继续下一步。不要每完成一步就停下来等老板安排；只有目标不清、预算/权限/风险越界、或需要老板拍板的选择，才用 ask_user。员工交成果后先读交付物对照验收标准，通过用 review_deliverable，打回要写清修改要求。\n【项目文档】每个项目必须先有《项目方案与计划书》再派执行任务：写清目标、范围、交付物、里程碑、任务拆解、角色分工、预算、风险与验收标准，并落盘为文件。开发完成后必须整理《项目信息总览》：技术栈、前后端模块与目录、接口与数据、部署运行、验收状态、已知问题与运维手册。项目文档由你负责，不能只发聊天。'
-      : '';
-
   return [
     '【当前公司数据】',
     `公司：${current.company.name}`,
@@ -1965,12 +1961,9 @@ function buildCompanyContext(current, context = {}) {
     knowledgeBlock,
     auditLine,
     hiringLine,
-    ownerLine,
     skillContext,
     expertContext,
     catalogContext,
-    '【能力边界】需要同事配合或确认时，只联系秘书江叙（e-jiang），不要直接找其他员工；跨部门协作统一由秘书转达。用 mcp__company__contact_employee 找江叙，对方空闲会直接返回回复，对方在忙会返回 queued（已送达），此时不要反复等待或重发，稍后用 mcp__company__check_employee_messages 取回复。不要自己假装同事回答。需要新建项目用 mcp__company__create_project；需要扫描已有目录里的旧项目用 mcp__company__scan_projects；公司设备、服务器、服务、流程、项目参数等知识用 mcp__company__save_memory 维护（scope 选公司或项目，写清型号、地址、端口、参数、步骤和注意事项），员工下一轮会在知识目录里看到摘要，需要全文时用 read_memory 读取；需要设备参数、连接方式或借用状态时，先用 mcp__company__list_devices 找设备，再用 mcp__company__read_device 读取完整信息；需要盘点服务器服务时，先 list_servers 找服务器，再 scan_server_services 拿到端口/进程/容器证据，由你判断每个服务是什么并起人类可读的名字，最后用 register_server_services 登记（不要直接把「python :11434」当服务名）；公司网关的账号、签到、模型和夜间低耗用 mcp__company__gateway_overview / gateway_add_account / gateway_checkin / gateway_models / gateway_policy 管理，账号迁移用 gateway_import_remote 或 gateway_import，备份用 gateway_export；需要老板拍板且答案是选项时用 mcp__company__ask_user 发选择式提问，不要用自由文本追问。',
-    '【回答规则】只依据以上数据回答；不要引用工作区代码或文件，除非任务明确要求；数据没有就说“公司数据里没有”。',
   ]
     .filter(Boolean)
     .join('\n');
@@ -5866,6 +5859,7 @@ function buildTaskPrompt(task, employee, project, runCwd = '', options = {}) {
     task.worktree ? '【隔离说明】本次任务在独立 Git 工作树中执行，改动会在验收后合并回项目工作区。' : '',
     '【输出位置】所有产出写到本次执行目录根下；完成后系统会把工位里的新文件归档回项目工作区。不要写到个人工位，也不要引用其他项目。',
     projectDocRule,
+    options.rules ? buildEmployeeRules(employee) : '',
     options.resume && task.result
       ? `【断点继续】你上次中断前的产出如下，请在此基础上继续补完，不要从头重复：\n${String(task.result).slice(0, 4000)}`
       : '',
@@ -6088,7 +6082,7 @@ async function runTask(taskId, options = {}) {
       ? employeeConversationKey(employee.id, project?.id || '', 'review')
       : employeeConversationKey(employee.id, project?.id || '');
     const result = await withChatLock(`employee:${employee.id}`, () =>
-      chatWithEmployee(employee.id, buildTaskPrompt(task, employee, project, runCwd, { resume: options.resume }), store.employeeSessions, {
+      chatWithEmployee(employee.id, buildTaskPrompt(task, employee, project, runCwd, { resume: options.resume, rules: taskRuntime.agentPreset === 'standard' }), store.employeeSessions, {
         ...taskRuntime,
         cwd: runCwd,
         sessionKey: taskSessionKey,
