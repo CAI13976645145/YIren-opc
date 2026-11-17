@@ -564,24 +564,32 @@ function readUpdateConfig() {
 
 async function checkForUpdates(manual = false) {
   const config = readUpdateConfig();
-  if (!config || !config.url) {
-    if (manual) {
-      dialog.showMessageBox({
-        type: 'info',
-        title: '检查更新',
-        message: '尚未配置更新源',
-        detail:
-          `把更新地址写入：\n${path.join(USER_DATA, 'update.json')}\n\n格式：{"url":"https://your-server/updates/"}\n` +
-          '配合 electron-builder 生成的 latest.yml 使用。当前版本：' +
-          app.getVersion(),
-      });
-    }
-    return;
-  }
   try {
     const { autoUpdater } = require('electron-updater');
-    autoUpdater.setFeedURL({ provider: 'generic', url: config.url });
+    // 优先用开发者写入的 update.json（自定义静态更新源）；
+    // 没有时用安装包内 electron-builder 生成的 app-update.yml（GitHub Releases 等）。
+    if (config && config.url) {
+      autoUpdater.setFeedURL({ provider: config.provider || 'generic', url: config.url });
+    } else {
+      const packagedFeed = path.join(process.resourcesPath, 'app-update.yml');
+      if (!fs.existsSync(packagedFeed)) {
+        if (manual) {
+          dialog.showMessageBox({
+            type: 'info',
+            title: '检查更新',
+            message: '当前安装包还没有配置更新源',
+            detail:
+              `可以在 ${path.join(USER_DATA, 'update.json')} 写入 ` +
+              '{"url":"https://your-server/updates/"}，或使用带 app-update.yml 的正式发布包。当前版本：' +
+              app.getVersion(),
+          });
+        }
+        return;
+      }
+    }
     autoUpdater.autoDownload = false;
+    autoUpdater.autoInstallOnAppQuit = true;
+    autoUpdater.logger = console;
     const result = await autoUpdater.checkForUpdates();
     if (!result || !result.updateInfo) return;
     if (result.updateInfo.version === app.getVersion()) {
