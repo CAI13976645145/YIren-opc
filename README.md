@@ -930,7 +930,7 @@ GITHUB_TOKEN=ghp_xxx node ../scripts/publish-github-release.mjs ../dist-electron
 ```
 
 客户端行为：启动 8 秒后静默检查更新；菜单「检查更新」可手动触发；发现新版本后弹窗确认，下载完成自动安装重启。
-更新清单为 Release 中的 `latest.yml`，安装包为 `一人公司-Setup-<version>.exe`，两者必须同时上传。
+更新清单为 Release 中的 `latest.yml`，安装包为 `OneCompany-Setup-<version>.exe`，两者必须同时上传。
 
 > 0.40.0 及更早的安装包没有内置 `app-update.yml`，需要手动安装一次 0.40.1，之后才能走自动更新。
 > 仓库若改为 private，客户端下载 Release 需要带 token，自动更新会失效，建议保持 public。

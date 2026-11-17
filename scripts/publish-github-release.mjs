@@ -39,7 +39,7 @@ function resolveDistDir() {
 }
 
 const distDir = resolveDistDir();
-const exeName = `一人公司-Setup-${version}.exe`;
+const exeName = `OneCompany-Setup-${version}.exe`;
 const localFiles = [exeName, `${exeName}.blockmap`, 'latest.yml'].map((name) => path.join(distDir, name));
 for (const file of localFiles) {
   if (!fs.existsSync(file)) throw new Error(`缺少构建产物：${file}`);

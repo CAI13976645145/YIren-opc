@@ -11,6 +11,33 @@
   "inputPricePerM": 0,
   "outputPricePerM": 0,
   "modelRoutes": [],
+  "gateway": {
+    "baseUrl": "",
+    "apiKey": ""
+  },
+  "gatewayPolicy": {
+    "enabled": true,
+    "autoStart": true,
+    "models": [],
+    "night": {
+      "enabled": false,
+      "start": "23:00",
+      "end": "08:00",
+      "model": "",
+      "tiers": [
+        "basic"
+      ],
+      "effort": "off"
+    },
+    "checkin": {
+      "auto": true,
+      "hours": [
+        9,
+        21
+      ],
+      "lastRunAt": ""
+    }
+  },
   "channels": {
     "email": {
       "enabled": false,
@@ -32,5 +59,49 @@
       "secret": ""
     }
   },
-  "updatedAt": null
+  "updatedAt": "2026-11-17T14:17:39.499Z",
+  "approvalPolicy": {
+    "mode": "autopilot",
+    "l1AutoApprove": true,
+    "l2RequireApproval": false,
+    "l3RequireApproval": false,
+    "l4RequireApproval": false,
+    "autoReview": false,
+    "version": 2,
+    "history": [
+      {
+        "version": 1,
+        "at": "2026-11-17T14:17:39.471Z",
+        "by": "系统",
+        "reason": "初始审批策略",
+        "snapshot": {
+          "mode": "auto-review",
+          "l1AutoApprove": true,
+          "l2RequireApproval": true,
+          "l3RequireApproval": true,
+          "l4RequireApproval": true,
+          "autoReview": true
+        }
+      },
+      {
+        "version": 2,
+        "at": "2026-11-17T14:17:39.495Z",
+        "by": "系统",
+        "reason": "默认允许所有权限：所有员工、所有工具、所有操作自动放行",
+        "snapshot": {
+          "mode": "autopilot",
+          "autoApproveAll": true,
+          "l1AutoApprove": true,
+          "l2RequireApproval": false,
+          "l3RequireApproval": false,
+          "l4RequireApproval": false,
+          "companyLevelApproval": false,
+          "autoReview": false
+        }
+      }
+    ],
+    "autoReviewMigrated": true,
+    "autoApproveAll": true,
+    "companyLevelApproval": false
+  }
 }

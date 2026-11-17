@@ -82,7 +82,7 @@
         "nsis"
       ],
       "icon": "assets/icon.ico",
-      "artifactName": "一人公司-Setup-${version}.${ext}"
+      "artifactName": "OneCompany-Setup-${version}.${ext}"
     },
     "nsis": {
       "oneClick": false,
