@@ -5913,6 +5913,34 @@ async function addAttachmentFiles(files, forcedKind = '') {
   renderComposerAttachments();
 }
 
+/** Electron 原生文件选择：绕过隐藏 input 在部分 Windows 环境下不弹框的问题。 */
+async function pickAttachmentsFromDesktop(kind = 'file') {
+  if (!window.oneCompanyDesktop?.pickFiles) return false;
+  try {
+    const items = await window.oneCompanyDesktop.pickFiles(kind);
+    const list = composerAttachments();
+    for (const item of items || []) {
+      if (item.error) {
+        showToast(`${item.name || '文件'}：${item.error}`);
+        continue;
+      }
+      if (list.length >= 6) break;
+      list.push({
+        name: item.name,
+        kind: item.kind === 'image' ? 'image' : 'file',
+        size: Number(item.size) || 0,
+        data: item.data,
+        preview: item.kind === 'image' ? `data:${item.type || 'image/png'};base64,${item.data}` : '',
+      });
+    }
+    renderComposerAttachments();
+    return true;
+  } catch (error) {
+    showToast(`选择文件失败：${error.message || error}`);
+    return true;
+  }
+}
+
 function addScreenshotAttachment(dataUrl) {
   const base64 = String(dataUrl || '').split(',')[1] || '';
   if (!base64) throw new Error('截图为空');
@@ -5932,6 +5960,7 @@ async function captureScreenshot() {
     // 桌面端优先走主进程 desktopCapturer，避免 Electron 里 getDisplayMedia 不可用
     if (window.oneCompanyDesktop?.captureScreen) {
       const dataUrl = await window.oneCompanyDesktop.captureScreen();
+      if (!dataUrl) return; // 老板按 Esc/右键取消了
       addScreenshotAttachment(dataUrl);
       return;
     }
@@ -11048,9 +11077,13 @@ document.addEventListener('click', (event) => {
   } else if (action === 'chat-jump') {
     scrollChat(true, true);
   } else if (action === 'attach-file') {
-    document.getElementById('composer-file-input')?.click();
+    void (async () => {
+      if (!(await pickAttachmentsFromDesktop('file'))) document.getElementById('composer-file-input')?.click();
+    })();
   } else if (action === 'attach-image') {
-    document.getElementById('composer-image-input')?.click();
+    void (async () => {
+      if (!(await pickAttachmentsFromDesktop('image'))) document.getElementById('composer-image-input')?.click();
+    })();
   } else if (action === 'attach-screenshot') {
     void captureScreenshot();
   } else if (action === 'remove-attachment') {

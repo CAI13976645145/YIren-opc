@@ -1,6 +1,6 @@
 {
   "name": "one-company-desktop",
-  "version": "0.40.6",
+  "version": "0.40.7",
   "private": true,
   "description": "一人公司 · 桌面客户端（Electron + 原生 DSH）",
   "author": "一人公司",
@@ -29,7 +29,9 @@
       "main.js",
       "preload.js",
       "splash.html",
-      "assets/**"
+      "assets/**",
+      "overlay.html",
+      "overlay-preload.js"
     ],
     "extraResources": [
       {

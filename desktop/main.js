@@ -2,6 +2,7 @@ const { app, BrowserWindow, Tray, Menu, dialog, shell, nativeImage, ipcMain, des
 const path = require('node:path');
 const fs = require('node:fs');
 const http = require('node:http');
+const { pathToFileURL } = require('node:url');
 const { spawn } = require('node:child_process');
 
 const APP_PORT = Number(process.env.OC_PORT || 4399);
@@ -138,6 +139,59 @@ async function prepareDataRoot() {
 
 ipcMain.handle('oc:open-data-dir', () => shell.openPath(DATA_DIR));
 ipcMain.handle('oc:get-data-dir', () => DATA_DIR);
+
+function fileMimeType(filePath) {
+  const ext = path.extname(filePath).toLowerCase();
+  const map = {
+    '.png': 'image/png',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.webp': 'image/webp',
+    '.gif': 'image/gif',
+    '.pdf': 'application/pdf',
+    '.txt': 'text/plain',
+    '.md': 'text/markdown',
+    '.json': 'application/json',
+    '.csv': 'text/csv',
+    '.zip': 'application/zip',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.xls': 'application/vnd.ms-excel',
+    '.xlsx': 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+    '.ppt': 'application/vnd.ms-powerpoint',
+    '.pptx': 'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+  };
+  return map[ext] || 'application/octet-stream';
+}
+
+ipcMain.handle('oc:pick-files', async (_event, kind = 'file') => {
+  const imagesOnly = kind === 'image';
+  const result = await dialog.showOpenDialog(mainWindow || undefined, {
+    title: imagesOnly ? '选择图片' : '选择文件',
+    properties: ['openFile', 'multiSelections'],
+    filters: imagesOnly
+      ? [{ name: '图片', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+      : [{ name: '所有文件', extensions: ['*'] }],
+  });
+  if (result.canceled) return [];
+  return result.filePaths.slice(0, 6).map((filePath) => {
+    try {
+      const stat = fs.statSync(filePath);
+      if (stat.size > 12 * 1024 * 1024) {
+        return { name: path.basename(filePath), error: '超过 12MB' };
+      }
+      return {
+        name: path.basename(filePath),
+        size: stat.size,
+        kind: imagesOnly ? 'image' : 'file',
+        type: fileMimeType(filePath),
+        data: fs.readFileSync(filePath).toString('base64'),
+      };
+    } catch (error) {
+      return { name: path.basename(filePath), error: error.message };
+    }
+  });
+});
 function missingInstallFiles() {
   return [
     path.join(ROOT, 'server.mjs'),
@@ -147,17 +201,97 @@ function missingInstallFiles() {
   ].filter((file) => !fs.existsSync(file));
 }
 ipcMain.handle('oc:capture-screen', async () => {
-  const display = screen.getPrimaryDisplay();
-  const width = Math.min(3840, Math.max(1280, Math.round(display.size.width * (display.scaleFactor || 1))));
-  const height = Math.min(2160, Math.max(720, Math.round(display.size.height * (display.scaleFactor || 1))));
+  // 微信式截图：先抓当前屏幕，再弹全屏遮罩让老板拖选区域
+  const display = screen.getDisplayNearestPoint(screen.getCursorScreenPoint());
+  const scale = display.scaleFactor || 1;
+  const pixelWidth = Math.min(7680, Math.max(1280, Math.round(display.size.width * scale)));
+  const pixelHeight = Math.min(4320, Math.max(720, Math.round(display.size.height * scale)));
   const sources = await desktopCapturer.getSources({
     types: ['screen'],
-    thumbnailSize: { width, height },
+    thumbnailSize: { width: pixelWidth, height: pixelHeight },
     fetchWindowIcons: false,
   });
   const source = sources.find((item) => String(item.display_id) === String(display.id)) || sources[0];
   if (!source || source.thumbnail.isEmpty()) throw new Error('没有找到可截图的屏幕');
-  return `data:image/png;base64,${source.thumbnail.toPNG().toString('base64')}`;
+  const shot = source.thumbnail;
+  const png = shot.toPNG();
+  const tmpFile = path.join(app.getPath('temp'), `oc-shot-${Date.now()}-${Math.random().toString(36).slice(2, 6)}.png`);
+  fs.writeFileSync(tmpFile, png);
+
+  const overlay = new BrowserWindow({
+    x: display.bounds.x,
+    y: display.bounds.y,
+    width: display.bounds.width,
+    height: display.bounds.height,
+    frame: false,
+    transparent: false,
+    backgroundColor: '#000000',
+    resizable: false,
+    movable: false,
+    minimizable: false,
+    maximizable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    hasShadow: false,
+    show: false,
+    webPreferences: {
+      preload: path.join(__dirname, 'overlay-preload.js'),
+      contextIsolation: true,
+      nodeIntegration: false,
+      sandbox: false,
+    },
+  });
+  overlay.setAlwaysOnTop(true, 'screen-saver');
+  overlay.setVisibleOnAllWorkspaces(true, { visibleOnFullScreen: true });
+  overlay.setMenuBarVisibility(false);
+
+  const rect = await new Promise((resolve) => {
+    let settled = false;
+    const finish = (value) => {
+      if (settled) return;
+      settled = true;
+      ipcMain.removeListener('oc:capture-region', onRegion);
+      ipcMain.removeListener('oc:capture-cancel', onCancel);
+      if (!overlay.isDestroyed()) overlay.close();
+      resolve(value);
+    };
+    const onRegion = (event, value) => {
+      if (event.sender !== overlay.webContents) return;
+      if (!value || !Number.isFinite(value.width) || !Number.isFinite(value.height)) return finish(null);
+      finish(value);
+    };
+    const onCancel = (event) => {
+      if (event.sender !== overlay.webContents) return;
+      finish(null);
+    };
+    ipcMain.on('oc:capture-region', onRegion);
+    ipcMain.on('oc:capture-cancel', onCancel);
+    overlay.on('closed', () => finish(null));
+    overlay.once('ready-to-show', () => {
+      overlay.show();
+      overlay.focus();
+    });
+    overlay.loadFile(path.join(__dirname, 'overlay.html'), {
+      query: { image: pathToFileURL(tmpFile).toString() },
+    });
+  });
+
+  try {
+    fs.unlinkSync(tmpFile);
+  } catch {
+    /* 临时文件清理失败不影响截图 */
+  }
+  if (!rect) return null;
+
+  const imageSize = shot.getSize();
+  const ratioX = imageSize.width / Math.max(1, display.bounds.width);
+  const ratioY = imageSize.height / Math.max(1, display.bounds.height);
+  const cropX = Math.max(0, Math.min(imageSize.width - 1, Math.round(rect.x * ratioX)));
+  const cropY = Math.max(0, Math.min(imageSize.height - 1, Math.round(rect.y * ratioY)));
+  const cropWidth = Math.max(1, Math.min(imageSize.width - cropX, Math.round(rect.width * ratioX)));
+  const cropHeight = Math.max(1, Math.min(imageSize.height - cropY, Math.round(rect.height * ratioY)));
+  const cropped = shot.crop({ x: cropX, y: cropY, width: cropWidth, height: cropHeight });
+  return `data:image/png;base64,${cropped.toPNG().toString('base64')}`;
 });
 
 function ensureDirs() {

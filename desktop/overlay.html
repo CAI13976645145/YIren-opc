@@ -1,0 +1,88 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+<meta charset="utf-8" />
+<title>截图</title>
+<style>
+  html, body { margin: 0; height: 100%; overflow: hidden; background: #000; cursor: crosshair; user-select: none; }
+  #shot { position: fixed; inset: 0; width: 100%; height: 100%; object-fit: fill; -webkit-user-drag: none; }
+  #sel { position: fixed; display: none; border: 2px solid #2ea7ff; background: rgba(46,167,255,.12); box-shadow: 0 0 0 9999px rgba(0,0,0,.48); pointer-events: none; }
+  #tip { position: fixed; top: 14px; left: 50%; transform: translateX(-50%); z-index: 10; color: #fff; font: 13px/1.4 "Microsoft YaHei", sans-serif; background: rgba(0,0,0,.72); padding: 7px 14px; border-radius: 8px; white-space: nowrap; }
+  #size { position: fixed; z-index: 10; color: #fff; font: 11px/1.2 Consolas, monospace; background: rgba(0,0,0,.7); padding: 3px 6px; border-radius: 4px; display: none; }
+</style>
+</head>
+<body>
+  <img id="shot" alt="" />
+  <div id="sel"></div>
+  <div id="size"></div>
+  <div id="tip">拖动选择截屏区域 · Esc / 右键取消</div>
+  <script>
+    const shot = document.getElementById('shot');
+    const sel = document.getElementById('sel');
+    const sizeLabel = document.getElementById('size');
+    const params = new URLSearchParams(location.search);
+    shot.src = params.get('image') || '';
+    const api = window.ocOverlay || { sendRegion: () => {}, cancel: () => {} };
+    let startX = 0, startY = 0, drawing = false;
+
+    function rectFromEvent(event) {
+      const x = Math.max(0, Math.min(event.clientX, window.innerWidth));
+      const y = Math.max(0, Math.min(event.clientY, window.innerHeight));
+      return { x, y };
+    }
+
+    function updateSelection(x, y) {
+      const left = Math.min(startX, x);
+      const top = Math.min(startY, y);
+      const width = Math.abs(x - startX);
+      const height = Math.abs(y - startY);
+      sel.style.display = 'block';
+      sel.style.left = left + 'px';
+      sel.style.top = top + 'px';
+      sel.style.width = width + 'px';
+      sel.style.height = height + 'px';
+      sizeLabel.style.display = width > 8 && height > 8 ? 'block' : 'none';
+      sizeLabel.textContent = Math.round(width) + ' × ' + Math.round(height);
+      sizeLabel.style.left = Math.min(window.innerWidth - 80, left + 6) + 'px';
+      sizeLabel.style.top = Math.max(6, top - 24) + 'px';
+      return { left, top, width, height };
+    }
+
+    window.addEventListener('mousedown', (event) => {
+      if (event.button !== 0) return;
+      drawing = true;
+      const point = rectFromEvent(event);
+      startX = point.x;
+      startY = point.y;
+      updateSelection(startX, startY);
+    });
+
+    window.addEventListener('mousemove', (event) => {
+      if (!drawing) return;
+      const point = rectFromEvent(event);
+      updateSelection(point.x, point.y);
+    });
+
+    window.addEventListener('mouseup', (event) => {
+      if (!drawing) return;
+      drawing = false;
+      const point = rectFromEvent(event);
+      const rect = updateSelection(point.x, point.y);
+      if (rect.width < 4 || rect.height < 4) {
+        sel.style.display = 'none';
+        sizeLabel.style.display = 'none';
+        return;
+      }
+      api.sendRegion({ x: rect.left, y: rect.top, width: rect.width, height: rect.height });
+    });
+
+    window.addEventListener('keydown', (event) => {
+      if (event.key === 'Escape') api.cancel();
+    });
+    window.addEventListener('contextmenu', (event) => {
+      event.preventDefault();
+      api.cancel();
+    });
+  </script>
+</body>
+</html>

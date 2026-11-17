@@ -12122,7 +12122,7 @@ function insertSystemMessage(chatKey, textValue) {
   }
 
   if (pathname === '/api/chat/upload' && req.method === 'POST') {
-    const body = await readJsonBody(req);
+    const body = await readJsonBody(req, 20 * 1024 * 1024);
     const employeeId = String(body.employeeId || 'e-jiang');
     const employee = store.employees.find((item) => item.id === employeeId);
     if (!employee) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '员工不存在' });
