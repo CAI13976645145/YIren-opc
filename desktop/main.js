@@ -267,6 +267,7 @@ ipcMain.handle('oc:capture-screen', async () => {
     ipcMain.on('oc:capture-region', onRegion);
     ipcMain.on('oc:capture-cancel', onCancel);
     overlay.on('closed', () => finish(null));
+    overlay.webContents.on('did-fail-load', () => finish(null));
     overlay.once('ready-to-show', () => {
       overlay.show();
       overlay.focus();
