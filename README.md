@@ -957,6 +957,7 @@ Windows 路径：`%APPDATA%\one-company-desktop\update.json`（`update.json` 优
 - 注入：只带「索引 1200 字（一条一行）」+「按当前问题召回 1600 字 / 最多 4 条 / 每条 420 字」；正文用 `read_memory`，搜索用 `search_memories`
 - 隔离：项目记忆只出现在对应项目的上下文；公司闲聊不带任何项目记忆；员工只能看自己参与的项目和本人记忆
 - 写入：`createMemory` 有卫生门（密钥/乱码/超长单行/纯 JSON 拒绝）、同层同名自动合并；交付验收不再一条一份记忆，改为每项目一条「交付台账」
+- 自动评审：每轮对话结束用配置的模型提取「老板长期偏好/规则、项目决策/口径、员工经验」，冷却 10 分钟、每人每天最多 8 次；只落规则和笔记，不记任务过程；也可 `POST /api/memories/review` 手动触发
 - 整理：`POST /api/memories/organize`；升级后首次启动会先 `createDataSnapshot()` 再迁移，占位/过期归档、同名合并、旧交付记录并入台账
 - 常量与算法集中在 `lib/memory-engine.mjs`（`MEMORY_INDEX_BUDGET` / `MEMORY_RECALL_BUDGET` / `MEMORY_LOG_TTL_DAYS`）
 

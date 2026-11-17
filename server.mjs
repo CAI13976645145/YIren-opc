@@ -27,6 +27,7 @@ import {
   memoryProblem,
   rankMemories,
 } from './lib/memory-engine.mjs';
+import { MEMORY_REVIEW_SYSTEM, buildMemoryReviewPrompt, parseMemoryReview } from './lib/memory-review.mjs';
 import {
   BUILTIN_TEMPLATES,
   buildOrg,
@@ -1729,6 +1730,128 @@ async function organizeMemories({ dryRun = false } = {}) {
     await saveStore();
   }
   return stats;
+}
+
+const memoryReviewRuns = new Map();
+
+/** 直接调用已配置的 OpenAI 兼容模型，用于记忆评审这种单轮小任务。 */
+async function chatCompletionText({ messages, maxTokens = 700, temperature = 0.1, timeoutMs = 60_000 }) {
+  const provider =
+    (settings.providers || []).find((item) => item.id === settings.provider && item.enabled !== false && item.baseUrl) ||
+    configuredProviders()[0];
+  const model = settings.model || provider?.models?.[0]?.id;
+  if (!provider || !model) return '';
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(`${String(provider.baseUrl).replace(/\/+$/, '')}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        ...(provider.apiKey ? { authorization: `Bearer ${provider.apiKey}` } : {}),
+      },
+      body: JSON.stringify({ model, messages, temperature, max_tokens: maxTokens }),
+      signal: controller.signal,
+    });
+    if (!response.ok) throw new Error(`模型接口 HTTP ${response.status}`);
+    const data = await response.json();
+    return String(data?.choices?.[0]?.message?.content ?? data?.output_text ?? '').trim();
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+function canWriteCompanyMemory(employee) {
+  return Boolean(
+    !employee ||
+      ['e-jiang', 'e-shenzhou'].includes(employee.id) ||
+      hasFullPermissions(employee) ||
+      /秘书|人事|行政|助理|运营|管理/i.test(`${employee.role || ''} ${employee.name || ''}`),
+  );
+}
+
+/**
+ * 每轮对话结束后的记忆评审：只落老板的长期偏好/规则、项目决策/口径、员工经验。
+ * 冷却 10 分钟、每人每天最多 8 次，失败静默，不影响聊天。
+ */
+async function runMemoryReview({ employee, project, userText, assistantText, force = false }) {
+  if (!employee || employee.archived || !isModelConfigured()) return;
+  if (String(userText || '').length + String(assistantText || '').length < 80) return;
+  const key = `${employee.id}:${project?.id || ''}`;
+  const now = Date.now();
+  const state = memoryReviewRuns.get(key) || { lastAt: 0, day: '', count: 0 };
+  const day = new Date().toISOString().slice(0, 10);
+  if (state.day !== day) {
+    state.day = day;
+    state.count = 0;
+  }
+  if (!force && (now - state.lastAt < 10 * 60 * 1000 || state.count >= 8)) return;
+  if (!force) {
+    state.lastAt = now;
+    state.count += 1;
+    memoryReviewRuns.set(key, state);
+  }
+
+  const existing = (store.memories || [])
+    .filter((item) => item.status !== 'archived' && memoryVisibleTo(store, item, employee))
+    .slice(0, 40);
+  const prompt = buildMemoryReviewPrompt({
+    employeeName: employee.name,
+    projectName: project?.name || '',
+    userText,
+    assistantText,
+    existing,
+  });
+  let raw = '';
+  try {
+    raw = await chatCompletionText({
+      // 当前网关会丢 system role，把评审规则并进 user 消息，确保模型看到 JSON 约束
+      messages: [{ role: 'user', content: `${MEMORY_REVIEW_SYSTEM}\n\n${prompt}` }],
+      maxTokens: 700,
+      temperature: 0.1,
+      timeoutMs: 60_000,
+    });
+  } catch (error) {
+    console.warn('记忆评审调用失败：', error instanceof Error ? error.message : String(error));
+    return;
+  }
+  const candidates = parseMemoryReview(raw);
+  if (!candidates.length) return;
+  const allowCompany = canWriteCompanyMemory(employee);
+  let saved = 0;
+  for (const item of candidates) {
+    let scope = item.scope;
+    if (scope === '公司' && !allowCompany) scope = project?.id ? '项目' : '员工';
+    if (scope === '项目' && !project?.id) scope = '员工';
+    try {
+      const memory = await createMemory({
+        name: item.name,
+        scope,
+        content: item.content,
+        category: item.category,
+        layer: scope === '公司' && item.layer === 'rule' ? 'rule' : 'note',
+        kind: 'memory-review',
+        projectId: scope === '项目' ? project.id : '',
+        employeeId: scope === '员工' ? employee.id : '',
+        source: 'memory-review',
+      });
+      saved += 1;
+      console.log(`[memory-review] ${employee.name} -> ${memory.name}（${scope}/${memory.layer}）`);
+    } catch (error) {
+      console.warn('记忆评审写入失败：', error instanceof Error ? error.message : String(error));
+    }
+  }
+  if (saved) {
+    audit('memory.review', {
+      targetType: 'memory',
+      targetId: key,
+      summary: `记忆评审写入 ${saved} 条`,
+      detail: `员工：${employee.name}；项目：${project?.name || '公司'}`,
+      actor: '记忆评审',
+      actorType: 'system',
+    });
+    await saveStore();
+  }
 }
 
 async function updateMemory(memory, input = {}) {
@@ -8828,6 +8951,12 @@ function buildFinanceLedger(projectId = '') {
       store.chats[chatKey].push(replyMessage);
       store.employeeSessions[sessionKey] = result.session;
       await saveStore();
+      void runMemoryReview({
+        employee,
+        project: primaryProject,
+        userText: text,
+        assistantText: result.text,
+      }).catch((error) => console.warn('记忆评审异常：', error instanceof Error ? error.message : String(error)));
       return json(res, 200, { ok: true, state: store, userMessage, replyMessage });
     } catch (error) {
       return json(res, 502, {
@@ -9202,6 +9331,13 @@ function buildFinanceLedger(projectId = '') {
       }
       store.employeeSessions[sessionKey] = result.session;
       await saveStore();
+
+      void runMemoryReview({
+        employee,
+        project: primaryProject,
+        userText: text,
+        assistantText: result.text,
+      }).catch((error) => console.warn('记忆评审异常：', error instanceof Error ? error.message : String(error)));
 
       sseSend(res, { type: 'done', chatKey, runId, state: store });
       res.end();
@@ -9746,6 +9882,22 @@ function insertSystemMessage(chatKey, textValue) {
       detail: `归档 ${stats.archived} 条（占位 ${stats.placeholders}、过期 ${stats.expired}、合并 ${stats.merged}），重建 ${stats.rebuilt} 条`,
     });
     return json(res, 200, { ok: true, stats, state: store });
+  }
+
+  if (pathname === '/api/memories/review' && req.method === 'POST') {
+    const body = await readJsonBody(req);
+    const employee = store.employees.find((item) => item.id === String(body.employeeId || '').trim());
+    const project = store.projects.find((item) => item.id === String(body.projectId || '').trim()) || null;
+    if (!employee) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '员工不存在' });
+    const before = store.memories.length;
+    await runMemoryReview({
+      employee,
+      project,
+      userText: String(body.userText || ''),
+      assistantText: String(body.assistantText || ''),
+      force: true,
+    });
+    return json(res, 200, { ok: true, added: Math.max(0, store.memories.length - before), state: store });
   }
 
   if (pathname === '/api/memories/search' && req.method === 'GET') {
