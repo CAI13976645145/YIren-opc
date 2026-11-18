@@ -2965,7 +2965,10 @@ function renderProjectFilesPage() {
                 <div class="pf-title">${escapeHtml(item.name)} <span class="type ${typeClass(item.type)}">${escapeHtml(item.type)}</span></div>
                 <div class="pf-path">${escapeHtml(item.workspacePath)}</div>
               </div>
-              <span class="tag muted">${item.fileCount} 个文件 · ${formatBytes(item.totalSize)}</span>
+              <div class="head-actions">
+                <span class="tag muted">${item.fileCount} 个文件 · ${formatBytes(item.totalSize)}</span>
+                <button class="btn ghost small" type="button" data-action="import-project-files" data-project="${escapeHtml(item.id)}">导入文件</button>
+              </div>
             </div>
             ${
               item.files.length
@@ -2999,6 +3002,60 @@ async function loadProjectFiles() {
   } finally {
     state.projectFilesLoading = false;
     if (state.view === 'projectfiles') render();
+  }
+}
+
+function pickBrowserFiles() {
+  return new Promise((resolve) => {
+    const input = document.createElement('input');
+    input.type = 'file';
+    input.multiple = true;
+    input.style.display = 'none';
+    document.body.appendChild(input);
+    input.addEventListener('change', () => {
+      const files = [...(input.files || [])];
+      input.remove();
+      resolve(files);
+    });
+    input.click();
+  });
+}
+
+async function importProjectFiles(projectId) {
+  try {
+    let items = [];
+    if (window.oneCompanyDesktop?.pickFiles) {
+      items = (await window.oneCompanyDesktop.pickFiles('file')) || [];
+    } else {
+      const files = (await pickBrowserFiles()).slice(0, 6);
+      for (const file of files) {
+        if (file.size > 12 * 1024 * 1024) {
+          showToast(`${file.name} 超过 12MB，已跳过`);
+          continue;
+        }
+        items.push({ name: file.name, size: file.size, data: await readFileAsBase64(file) });
+      }
+    }
+    if (!items.length) return;
+    let ok = 0;
+    for (const item of items) {
+      if (item.error) {
+        showToast(`${item.name || '文件'}：${item.error}`);
+        continue;
+      }
+      const result = await apiSoft('/api/project-files/upload', {
+        method: 'POST',
+        body: JSON.stringify({ projectId, name: item.name, data: item.data }),
+      });
+      if (result.ok) ok += 1;
+      else showToast(`「${item.name}」导入失败：${result.error || '未知错误'}`);
+    }
+    if (ok) {
+      showToast(`已导入 ${ok} 个文件`);
+      await loadProjectFiles();
+    }
+  } catch (error) {
+    showToast(`导入文件失败：${error.message || error}`);
   }
 }
 
@@ -11317,6 +11374,8 @@ document.addEventListener('click', (event) => {
     state.projectFiles = null;
     state.projectFilesLoading = false;
     render();
+  } else if (action === 'import-project-files') {
+    void importProjectFiles(target.dataset.project || '');
   } else if (action === 'approve-write') {
     const allowSimilar = Boolean(document.querySelector(`[data-approval-similar="${id}"]`)?.checked);
     decideApproval(id, 'approve', '', allowSimilar);

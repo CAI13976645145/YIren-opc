@@ -6224,26 +6224,32 @@ async function listFilesInDirectory(base, limit = 60) {
     } catch {
       return;
     }
-    for (const entry of entries) {
+    const files = entries.filter((entry) => entry.isFile()).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    const dirs = entries.filter((entry) => entry.isDirectory()).sort((a, b) => a.name.localeCompare(b.name, 'zh'));
+    // 先收当前目录的文件，再递归子目录：项目根目录导入的文件不会被大量工位文件挤掉
+    for (const entry of files) {
       if (results.length >= limit) break;
       if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
       const absolute = join(dir, entry.name);
       const itemPath = prefix ? `${prefix}/${entry.name}` : entry.name;
-      if (entry.isDirectory()) {
-        await walk(absolute, itemPath, depth + 1);
-      } else if (entry.isFile()) {
-        try {
-          const info = await stat(absolute);
-          results.push({
-            path: itemPath,
-            name: entry.name,
-            size: info.size,
-            updatedAt: info.mtime.toISOString(),
-          });
-        } catch {
-          /* ignore */
-        }
+      try {
+        const info = await stat(absolute);
+        results.push({
+          path: itemPath,
+          name: entry.name,
+          size: info.size,
+          updatedAt: info.mtime.toISOString(),
+        });
+      } catch {
+        /* ignore */
       }
+    }
+    for (const entry of dirs) {
+      if (results.length >= limit) break;
+      if (entry.name.startsWith('.') || entry.name === 'node_modules') continue;
+      const absolute = join(dir, entry.name);
+      const itemPath = prefix ? `${prefix}/${entry.name}` : entry.name;
+      await walk(absolute, itemPath, depth + 1);
     }
   }
   await walk(base, '', 0);
@@ -9071,7 +9077,8 @@ function buildFinanceLedger(projectId = '') {
       const workspacePath = projectWorkspacePath(project);
       let files = [];
       try {
-        files = await listFilesInDirectory(workspacePath, 80);
+        files = await listFilesInDirectory(workspacePath, 300);
+        files.sort((a, b) => String(b.updatedAt || '').localeCompare(String(a.updatedAt || '')));
       } catch {
         files = [];
       }
@@ -9087,6 +9094,56 @@ function buildFinanceLedger(projectId = '') {
       });
     }
     return json(res, 200, { ok: true, projects: results });
+  }
+
+  if (pathname === '/api/project-files/upload' && req.method === 'POST') {
+    const body = await readJsonBody(req, 20 * 1024 * 1024);
+    const project = store.projects.find((item) => item.id === String(body.projectId || '').trim());
+    if (!project) return json(res, 404, { ok: false, code: 'NOT_FOUND', error: '项目不存在' });
+    const originalName = basename(String(body.name || '').trim());
+    if (!originalName || originalName === '.' || originalName === '..') {
+      return json(res, 400, { ok: false, code: 'INVALID', error: '文件名不合法' });
+    }
+    const raw = String(body.data || '');
+    let buffer;
+    try {
+      buffer = Buffer.from(raw, 'base64');
+    } catch {
+      return json(res, 400, { ok: false, code: 'INVALID', error: '文件编码不合法' });
+    }
+    if (!buffer.length) return json(res, 400, { ok: false, code: 'INVALID', error: '文件内容为空' });
+    if (buffer.length > 12 * 1024 * 1024) {
+      return json(res, 400, { ok: false, code: 'TOO_LARGE', error: '单个文件不能超过 12MB' });
+    }
+    const workspace = projectWorkspacePath(project);
+    await mkdir(workspace, { recursive: true });
+    const safe = originalName.replace(/[^\w.\-\u4e00-\u9fa5]+/g, '_').slice(0, 100) || 'file';
+    const ext = extname(safe);
+    const stem = safe.slice(0, safe.length - ext.length) || 'file';
+    let fileName = safe;
+    for (let index = 1; index < 100; index += 1) {
+      try {
+        await stat(join(workspace, fileName));
+        fileName = `${stem}-${index}${ext}`;
+      } catch {
+        break;
+      }
+    }
+    const target = join(workspace, fileName);
+    await writeFile(target, buffer);
+    audit('project.file.import', {
+      targetType: 'project',
+      targetId: project.id,
+      summary: `导入项目文件「${fileName}」`,
+      detail: `项目：${project.name}；大小：${buffer.length} 字节`,
+      level: 'L1',
+    });
+    await saveStore();
+    return json(res, 200, {
+      ok: true,
+      file: { name: fileName, path: fileName, size: buffer.length, updatedAt: new Date().toISOString() },
+      projectId: project.id,
+    });
   }
 
   if (pathname === '/api/stations' && req.method === 'GET') {
